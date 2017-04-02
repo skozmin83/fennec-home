@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    .top-line {
+        fill: rgba(255, 145, 135, 0.8);
+        stroke: red;
+        stroke-width: 2px;
+    }
+    .bottom-line {
+        fill: rgba(89, 167, 255, 0.8);
+        stroke: steelblue;
+        stroke-width: 2px;
+    }
+</style>
+<body>
+
+<!-- load the d3.js library -->
+<script src="https://d3js.org/d3.v4.min.js"></script>
+
+<script>
+    // set the dimensions and margins of the graph
+    var margin = {top: 20, right: 20, bottom: 30, left: 50},
+        width = 960 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    // parse the date / time
+    // 2017-03-25T06:07:34.780Z
+    // d3.time.format("%Y-%m-%d")	1986-01-28
+    // var parseTime = d3.timeParse("%Y-%m-%dT%XZ");
+    var parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
+    //    var parseTime = d3.timeParse("%Y-%m-%dT%H:%M:%S.%LZ");
+    //    var parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
+    //var parseTime = d3.timeParse("%d-%b-%y");
+
+    // set the ranges
+    var x = d3.scaleTime().range([0, width]);
+    var y = d3.scaleLinear().range([height, 0]);
+
+    // define the line
+    var valueline = d3.area()
+        .curve(d3.curveMonotoneX)
+        .x(function (d) {
+            return x(d.ts);
+        })
+        .y0(function (d) {
+            return y(d.t);
+        })
+        .y1(function (d) {
+            return height;
+        });
+
+    // append the svg obgect to the body of the page
+    // appends a 'group' element to 'svg'
+    // moves the 'group' element to the top left margin
+    var svg = d3.select("body").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+    // Get the data
+    d3.csv("/temperature.csv?sid=dht22-top&topic=A0:20:A6:16:A7:0A", function (error, data) {
+        if (error) throw error;
+
+        // format the data
+        data.forEach(function (d) {
+            d.ts = parseTime(d.ts);
+            d.t = +d.t;
+        });
+
+        // Scale the range of the data
+        x.domain(d3.extent(data, function (d) {
+            return d.ts;
+        }));
+        y.domain(d3.extent(data, function (d) {
+            return d.t;
+        }));
+        <!--y.domain([0, d3.max(data, function(d) { return d.t; })]);-->
+        svg.datum(data);
+        // Add the valueline path.
+        svg.append("path")
+//            .data([data])
+            .attr("class", "top-line")
+            .attr("d", valueline)
+            .attr('clip-path', 'url(#rect-clip)');
+
+
+        // Add the X Axis
+        svg.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x));
+
+        // Add the Y Axis
+        svg.append("g")
+            .call(d3.axisLeft(y));
+
+    });
+    // Get the data
+    d3.csv("/temperature.csv?sid=dht22-bottom&topic=A0:20:A6:16:A7:0A", function (error, data) {
+        if (error) throw error;
+
+        // format the data
+        data.forEach(function (d) {
+            d.ts = parseTime(d.ts);
+            d.t = +d.t;
+        });
+
+        // Scale the range of the data
+        x.domain(d3.extent(data, function (d) {
+            return d.ts;
+        }));
+        y.domain(d3.extent(data, function (d) {
+            return d.t;
+        }));
+        <!--y.domain([0, d3.max(data, function(d) { return d.t; })]);-->
+        svg.datum(data);
+        // Add the valueline path.
+        svg.append("path")
+        //            .data([data])
+            .attr("class", "bottom-line")
+            .attr("d", valueline)
+            .attr('clip-path', 'url(#rect-clip)');
+
+
+        // Add the X Axis
+        svg.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x));
+    });
+
+</script>
+</body>

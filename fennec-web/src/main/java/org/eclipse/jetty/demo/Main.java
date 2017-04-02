@@ -43,8 +43,6 @@ import org.eclipse.jetty.util.component.AbstractLifeCycle;
 import org.eclipse.jetty.util.log.JavaUtilLog;
 import org.eclipse.jetty.util.log.Log;
 
-import com.acme.DateServlet;
-
 /**
  * Example of using JSP's with embedded jetty and using a
  * lighter-weight ServletContextHandler instead of a WebAppContext.
@@ -190,7 +188,6 @@ public class Main {
         sch.setClassLoader(getUrlClassLoader());
         sch.addServlet(jspServletHolder(), "*.jsp");
         // Add Application Servlets
-        sch.addServlet(DateServlet.class, "/date/");
         sch.addServlet(exampleJspFileMappedServletHolder(), "/test/foo/");
         sch.addServlet(defaultServletHolder(baseUri), "/");
         sch.addServlet(DeviceTemperatureCsvServlet.class, "/temperature.csv");

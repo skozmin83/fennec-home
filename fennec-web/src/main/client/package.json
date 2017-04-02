@@ -1,0 +1,49 @@
+{
+  "name": "fennec-web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "js/index.js",
+  "style": "css/index.css",
+  "dependencies": {
+    "jsdom": "*",
+    "jquery": "*",
+    "tether": "*",
+    "bootstrap": "^4.0.0-alpha.6",
+    "d3": "^4.7.4",
+    "grunt": "^1.0.1",
+    "grunt-browserify": "^5.0.0",
+    "grunt-contrib-clean": "^1.0.0",
+    "grunt-contrib-copy": "^1.0.0",
+    "grunt-contrib-jshint": "^1.1.0",
+    "grunt-rework": "^0.1.0",
+    "rework": "^1.0.1",
+    "rework-import": "^2.1.0",
+    "grunt-shell": "*",
+    "grunt-contrib-uglify": "*",
+    "grunt-contrib-connect": "*",
+    "grunt-contrib-compass": "*",
+    "grunt-open": "*",
+    "grunt-contrib-requirejs": "*"
+  },
+  "devDependencies": {
+    "jsdom": "*",
+    "jquery": "*",
+    "tether": "*",
+    "bootstrap": "^4.0.0-alpha.6",
+    "grunt-contrib-cssmin": "^2.0.0",
+    "grunt-css": "^0.5.4",
+    "grunt": "*",
+    "grunt-shell": "*",
+    "grunt-contrib-uglify": "*",
+    "grunt-contrib-connect": "*",
+    "grunt-contrib-compass": "*",
+    "grunt-open": "*",
+    "grunt-contrib-requirejs": "*",
+    "grunt-contrib-copy": "*"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "sergey kozmin",
+  "license": "ISC"
+}

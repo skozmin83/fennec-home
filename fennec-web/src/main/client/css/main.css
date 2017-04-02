@@ -1,0 +1,39 @@
+body {
+	font-family: sans-serif;
+}
+
+.top-line {
+	fill: none;
+	/*fill: rgba(255, 145, 135, 0.8);*/
+	stroke: red;
+	stroke-width: 2px;
+}
+
+.bottom-line {
+	fill: none;
+	/*fill: rgba(89, 167, 255, 0.8);*/
+	stroke: steelblue;
+	stroke-width: 2px;
+}
+
+body {
+	font: 12px Arial;
+}
+
+.axis path,
+.axis line {
+	fill: none;
+	stroke: grey;
+	stroke-width: 1;
+	shape-rendering: crispEdges;
+}
+
+.axis--x path {
+	/*display: none;*/
+}
+
+.series {
+	fill: none;
+	/*stroke: steelblue;*/
+	stroke-width: 2px;
+}
