@@ -10,6 +10,8 @@ import org.bson.Document;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.TimeZone;
 
@@ -29,11 +31,19 @@ public class Example {
         df.setTimeZone(tz);
         StringBuilder sb = new StringBuilder();
 
+        Date from = Date.from(Instant.now().minus(1, ChronoUnit.DAYS));
+        System.out.println("Start from [" + from + "] elements. ");
+        final int[] counter = {0};
         collection
 //                .find()
-                .find(and(Filters.regex("sid", "dht22-top"), Filters.regex("topic", "A0:20:A6:16:A6:34")))
-                .sort(Sorts.ascending("ts", "sid"))
+//                .find(and(Filters.regex("sid", "dht22-top"), Filters.regex("topic", "A0:20:A6:16:A6:34")))
+                .find(and(
+                        Filters.regex("sid", "(dht22-top|dht22-bottom)")
+                        ,Filters.regex("topic", "A0:20:A6:16:A7:0A")
+//                      ,  Filters.gt("ts", from)
+                )).sort(Sorts.ascending("ts", "sid"))
                 .forEach((Block<Document>) document -> {
+                    counter[0]++;
                     sb.setLength(0);
                     Date ts = (Date) document.get("ts");
                     String sid = (String) document.get("sid");
@@ -43,5 +53,6 @@ public class Example {
                         System.out.print(sb);
                     }
                 });
+        System.out.println("Loaded [" + counter[0] + "] elements. ");
     }
 }

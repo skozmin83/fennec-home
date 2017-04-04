@@ -29,6 +29,7 @@ import static com.mongodb.client.model.Filters.or;
 public class DeviceTemperatureCsvServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+//        System.out.println("req = " + req);
         Map<String, String[]> map = req.getParameterMap();
         List<Bson> filters = new ArrayList<>(map.size());
         for (Map.Entry<String, String[]> entry : map.entrySet()) {
