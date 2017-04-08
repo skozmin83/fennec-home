@@ -14,7 +14,6 @@ class DeviceInfoSaverListener extends AbstractInterceptHandler {
     private final MongoStorage st = new MongoStorage();
     private final IMsgParser parser = new JsonMsgParser();
 
-    @Override
     public String getID() {
         return getClass().getSimpleName();
     }

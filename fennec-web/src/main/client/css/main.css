@@ -20,15 +20,14 @@ body {
     font: 12px Arial;
 }
 
-.axis path,
-.axis line {
+.axis {
     fill: none;
     stroke: grey;
     stroke-width: 1;
     shape-rendering: crispEdges;
 }
 
-.axis--x path {
+.xaxis {
     /*display: none;*/
 }
 

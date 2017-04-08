@@ -11,6 +11,16 @@
     <version>0.01-SNAPSHOT</version>
     <name>Fennec Home</name>
 
+    <repositories>
+        <repository>
+            <id>Eclipse Paho Release Repo</id>
+            <url>https://repo.eclipse.org/content/repositories/paho-releases/</url>
+        </repository>
+        <repository>
+            <id>Eclipse Paho Release Repo</id>
+            <url>https://repo.eclipse.org/content/repositories/paho-snapshots/</url>
+        </repository>
+    </repositories>
     <dependencies>
         <dependency>
             <groupId>io.moquette</groupId>
