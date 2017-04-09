@@ -31,6 +31,11 @@ body {
     /*display: none;*/
 }
 
+.cross-value-text {
+    dx: 8;
+    dy: -.3em;
+}
+
 .horizontal-line {
     stroke: blue;
     stroke-dasharray: 3, 3;

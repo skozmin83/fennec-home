@@ -88,6 +88,13 @@ class DataVisualizer {
         this.y = d3.scaleLinear().range([this.height, 0]);
         this.z = d3.scaleOrdinal(d3.schemeCategory10);
 
+        this.xMin = new Date();
+        this.xMax = new Date();
+        this.yMin = new Date();
+        this.yMax = new Date();
+        this.seriesIdsArray = [];
+        this.inverseMapping = [];
+
         this.svg = d3.select("body")
             .append("svg")
             .attr("width", this.width + this.margin.left + this.margin.right)
@@ -106,7 +113,16 @@ class DataVisualizer {
             .attr("fill", "#000")
             .text("Temperature, ºC");
 
-        this.focus = this.g.append("g").style("display", "none");
+        this.focus = this.g.append("g")
+            .attr("class", "focus")
+            .attr("id", "focus123")
+            .style("display", "none")
+        ;
+        // append the vertical line
+        this.focus.append("line")
+            .attr("class", "vertical-line")
+            .attr("y1", 0)
+            .attr("y2", this.height);
         // append the rectangle to capture mouse
         this.g.append("rect")
             .attr("width", this.width)
@@ -122,13 +138,6 @@ class DataVisualizer {
             .curve(d3.curveMonotoneX)
             .x(d => this.x(d.time))
             .y(d => this.y(d.temperature));
-
-        this.xMin = new Date();
-        this.xMax = new Date();
-        this.yMin = new Date();
-        this.yMax = new Date();
-        this.seriesIdsArray = [];
-        this.inverseMapping = [];
     }
 
     incrementalUpdate(seriesDataArray, dataUpdate) {
@@ -167,33 +176,77 @@ class DataVisualizer {
             .call(d3.axisLeft(this.y));
 
         let domSeriesId = "series-" + dataHolder.id;
-        let seriesId = this.g.selectAll("#" + domSeriesId);
-        let text = null;
-        if (seriesId.size() === 0) {
-            seriesId = this.g
-                .append("g")
-                .attr("class", "series")
-                .attr("id", domSeriesId)
-            // .merge(g.select("#" + domSeriesId))
-            ;
-            text = seriesId.append("text")
-                .attr("id", "text-" + domSeriesId)
-                .attr("x", 3)
-                .attr("dy", "0.35em")
-                .style("font", "12px sans-serif")
-            ;
-            seriesId
-                .append("path")
-                .attr("class", "line")
-                .attr("id", "path-" + domSeriesId);
-            this.drawCross([dataHolder]);
-        } else {
-            text = seriesId.selectAll("#text-" + domSeriesId);
-        }
+        // draw group and create a structure
+        let seriesId = this.g.selectAll("#" + domSeriesId)
+            .data([dataHolder], d => d.id)
+            .enter()
+            .append("g")
+            .attr("class", "series")
+            .attr("id", domSeriesId);
+        // draw line if doesn't exist
+        let path = seriesId.selectAll("#path-" + domSeriesId)
+            .data([dataHolder], d => d.id)
+            .enter()
+            .append("path")
+            .attr("class", "line")
+            .attr("id", "path-" + domSeriesId)
+        ;
+        // draw text at the end
+        let text = seriesId.selectAll("#text-" + domSeriesId)
+            .data([dataHolder], d => d.id)
+            .enter()
+            .append("text")
+            .attr("id", "text-" + domSeriesId)
+            .attr("x", 3)
+            .attr("dy", "0.35em")
+            .style("font", "12px sans-serif")
+        ;
+        // append the circle at the intersection
+        this.focus
+            .selectAll("#cross-" + dataHolder.id)
+            .data([dataHolder], series => series.id)
+            .enter()
+            .append("circle")
+            .attr("class", "cross")
+            .attr("id", series => "cross-" + series.id)
+            .style("stroke", series => this.z(series.id))
+            .style("fill", series => this.z(series.id))
+            .attr("r", 3);
+        // place the value at the intersection
+        this.focus
+            .selectAll("#cross-value-text-" + dataHolder.id)
+            .data([dataHolder], series => series.id)
+            .enter()
+            .append("text")
+            .attr("id", series => "cross-value-text-" + series.id)
+            .attr("class", "cross-value-text")
+            .attr("dx", 8)
+            .attr("dy", "-.3em");
+        // place the date at the intersection
+        this.focus
+            .selectAll("#cross-time-text-" + dataHolder.id)
+            .data([dataHolder], series => series.id)
+            .enter()
+            .append("text")
+            .attr("id", series => "cross-time-text-" + series.id)
+            .attr("class", "cross-time-text")
+            .attr("dx", 8)
+            .attr("dy", "1em");
+
+        // ==========  update section
+        // update line itself
+        this.g
+            .selectAll("#path-" + domSeriesId)
+            .data([dataHolder], d => d.id)
+            .attr("d", d => this.line(d.seriesValues))
+            .style("stroke", d => this.z(d.id));
+
+        // this.drawCross([dataHolder]);
         if (dataHolder.seriesValues.length === 0) {
             return;
         }
-        text
+        this.g
+            .selectAll("#text-" + domSeriesId)
             .data([{
                 id: dataHolder.id,
                 value: dataHolder.seriesValues[dataHolder.seriesValues.length - 1]
@@ -204,63 +257,7 @@ class DataVisualizer {
             .attr("fill", d => this.z(d.id))
             .text(d => d.id)
             .attr("transform", d => "translate(" + this.x(d.value.time) + "," + this.y(d.value.temperature) + ")");
-
-        seriesId.selectAll("#path-" + domSeriesId)
-            .datum(dataHolder)
-            .attr("d", d => this.line(d.seriesValues))
-            .style("stroke", d => this.z(d.id));
-
         this.inverseMapping = this.calculateInverseMapping([dataHolder]); // todo optimize
-    }
-
-    drawCross(dataHolder) {
-        for (let i = 0; i < dataHolder.length; i++) {
-            let series = dataHolder[i];
-            // append the horizontal line
-            // focus.append("line")
-            //     .attr("class", "horizontal-line")
-            //     .attr("id", "horizontal-line-" + i)
-            //     .attr("x1", width)
-            //     .attr("x2", width);
-            // append the circle at the intersection
-            this.focus.append("circle")
-                .attr("class", "cross")
-                .attr("id", "cross-" + i)
-                .style("stroke", this.z(series.id))
-                .style("fill", this.z(series.id))
-                .attr("r", 3);
-
-            // place the value at the intersection
-            // focus.append("text")
-            //     .attr("id", "value-text-" + i)
-            //     .style("stroke", "white")
-            //     .style("stroke-width", "3.5px")
-            //     .style("opacity", 0.8)
-            //     .attr("dx", 8)
-            //     .attr("dy", "-.3em");
-            this.focus.append("text")
-                .attr("id", "cross-value-text-" + i)
-                .attr("dx", 8)
-                .attr("dy", "-.3em");
-
-            // place the date at the intersection
-            // focus.append("text")
-            //     .attr("class", "y3")
-            //     .style("stroke", "white")
-            //     .style("stroke-width", "3.5px")
-            //     .style("opacity", 0.8)
-            //     .attr("dx", 8)
-            //     .attr("dy", "1em");
-            this.focus.append("text")
-                .attr("id", "cross-time-text-" + i)
-                .attr("dx", 8)
-                .attr("dy", "1em");
-        }
-        // append the vertical line
-        this.focus.append("line")
-            .attr("class", "vertical-line")
-            .attr("y1", 0)
-            .attr("y2", this.height);
     }
 
     onMouseMove() {
@@ -289,12 +286,12 @@ class DataVisualizer {
                 ;
                 enteredOnce = true;
             }
-            this.focus.selectAll("#cross-" + i)
+            this.focus.selectAll("#cross-" + d.sid)
                 .attr("transform", "translate(" + this.x(d.time) + "," + this.y(d.temperature) + ")");
             // focus.select("text.y1")
             //     .attr("transform", "translate(" + x(d.time) + "," + y(d.temperature) + ")")
             //     .text(d.temperature);
-            this.focus.selectAll("#cross-value-text-" + i)
+            this.focus.selectAll("#cross-value-text-" + d.sid)
                 .attr("transform", "translate(" + this.x(d.time) + "," + this.y(d.temperature) + ")")
                 .text(d.temperature);
 
@@ -302,7 +299,7 @@ class DataVisualizer {
             //     .attr("transform", "translate(" + x(d.time) + "," + y(d.temperature) + ")")
             //     .text(formatDate(d.time));
             //
-            this.focus.selectAll("#cross-time-text-" + i)
+            this.focus.selectAll("#cross-time-text-" + d.sid)
                 .attr("transform", "translate(" + this.x(d.time) + "," + this.y(d.temperature) + ")")
                 // .text(dateFormat(d.time, "mmm dd yyyy HH:MM"));
                 .text(dateFormat(d.time, "mmm dd HH:MM"));
