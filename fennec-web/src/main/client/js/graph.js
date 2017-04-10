@@ -25,13 +25,14 @@ class DataGraph {
             this.seriesDataArray[dataHolder.id] = dataHolder;
             dataHolder.seriesValues.forEach(d => this.enrichDatum(d));
 
-            // adjust domain, todo optimize to a single traverse
-            this.xMin = findMin(d3.min(dataHolder.seriesValues, d => d.time), this.xMin);
-            this.xMax = findMax(d3.max(dataHolder.seriesValues, d => d.time), this.xMax);
-            this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
-            this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
+            // this.seriesDataArray.forEach(dataHolder => {
+                // adjust domain, todo optimize to a single traverse
+                this.xMin = findMin(d3.min(dataHolder.seriesValues, d => d.time), this.xMin);
+                this.xMax = findMax(d3.max(dataHolder.seriesValues, d => d.time), this.xMax);
+                this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
+                this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
+            // });
             this.dataView.resetDomain(this.xMin, this.xMax, this.yMin, this.yMax);
-
             // redraw
             this.dataView.drawSeries(dataHolder, this.seriesDataArray);
         });
@@ -48,7 +49,7 @@ class DataGraph {
             this.enrichDatum(incrementalUpdate);
 
             // drop older than 15 secs from all series, todo parametrize
-            let minTime = Date.now() - 15000;
+            let minTime = Date.now() - 1000 * 60 * 60 * 24;
             this.dropOlderPoints(this.seriesDataArray, minTime);
 
             // add new
@@ -61,18 +62,20 @@ class DataGraph {
 
             // redraw
             this.dataView.drawSeries(dataHolder, this.seriesDataArray);
+
+            // todo recalc mouse cross
         });
     }
 
     dropOlderPoints(seriesDataArray, minTime) {
-        console.log("Min time: " + new Date(minTime) + ", " + minTime);
+        // console.log("Min time: " + new Date(minTime) + ", " + minTime);
         Object.keys(seriesDataArray).forEach(key => {
             let seriesValuesArray = seriesDataArray[key].seriesValues;
             while (seriesValuesArray.length > 0) {
                 if (seriesValuesArray[0].timeMillis < minTime
                     && seriesValuesArray[1] && seriesValuesArray[1].timeMillis < minTime) { // leave 1 point so our graph starts at the 0. todo add clipping
                     let dropped = seriesValuesArray.shift();
-                    console.log("Drop: " + JSON.stringify(dropped));
+                    // console.log("Drop: " + JSON.stringify(dropped));
                 } else {
                     break; // assume it's monotonically incremented function, thus everything else is valid
                 }
@@ -160,6 +163,8 @@ class DataVisualizer {
         this.xMax = new Date();
         this.yMin = new Date();
         this.yMax = new Date();
+        this.xPrevMin = this.xMin;
+        this.xPrevMax = this.xMax;
         this.seriesIdsArray = [];
         this.inverseMapping = [];
 
@@ -169,8 +174,12 @@ class DataVisualizer {
             .attr("height", this.height + this.margin.top + this.margin.bottom);
         this.g = this.svg.append("g")
             .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
+        this.pathes = this.g.append("g")
+            .attr("id", "pathes")
+        ;
         this.xAxis = this.g.append("g")
-            .attr("class", ".xaxis");
+            .attr("class", ".xaxis")
+            .attr("transform", "translate(0," + this.height + ")");
         this.yAxis = this.g.append("g")
             .attr("class", ".yaxis");
         this.yAxis
@@ -180,6 +189,13 @@ class DataVisualizer {
             .attr("dy", "0.71em")
             .attr("fill", "#000")
             .text("Temperature, ºC");
+
+        // clipping for path'
+        this.g.append("defs").append("clipPath")
+            .attr("id", "clip")
+            .append("rect")
+            .attr("width", this.width)
+            .attr("height", this.height);
 
         this.focus = this.g.append("g")
             .attr("class", "focus")
@@ -209,6 +225,13 @@ class DataVisualizer {
     }
 
     resetDomain(xMin, xMax, yMin, yMax) {
+        this.xPrevMin = this.xMin;
+        this.xPrevMax = this.xMax;
+        this.xMin = xMin;
+        this.xMax = xMax;
+        this.yMin = yMin;
+        this.yMax = yMax;
+
         this.x.domain([xMin, xMax]);
         this.y.domain([yMin, yMax]);
     }
@@ -218,15 +241,9 @@ class DataVisualizer {
         this.seriesIdsArray = d3.merge([this.seriesIdsArray, [dataHolder.id]]);
         this.z.domain(this.seriesIdsArray);
 
-        this.xAxis
-            .attr("transform", "translate(0," + this.height + ")")
-            .call(d3.axisBottom(this.x));
-        this.yAxis
-            .call(d3.axisLeft(this.y));
-
         let domSeriesId = "series-" + dataHolder.id;
         // draw group and create a structure
-        let seriesId = this.g.selectAll("#" + domSeriesId)
+        let seriesId = this.pathes.selectAll("#" + domSeriesId)
             .data([dataHolder], d => d.id)
             .enter()
             .append("g")
@@ -234,12 +251,18 @@ class DataVisualizer {
             .attr("id", domSeriesId);
         // draw line if doesn't exist
         let path = seriesId.selectAll("#path-" + domSeriesId)
-            .data([dataHolder], d => d.id)
-            .enter()
-            .append("path")
-            .attr("class", "line")
-            .attr("id", "path-" + domSeriesId)
-            .style("stroke", d => this.z(d.id))
+                .data([dataHolder], d => d.id)
+                .enter()
+                .append("g")
+                .attr("clip-path", "url(#clip)")
+                .append("path")
+                .attr("class", "line")
+                .attr("id", "path-" + domSeriesId)
+                .style("stroke", d => this.z(d.id))
+            // .transition()
+            // .duration(500)
+            // .ease(d3.easeLinear)
+            // .on("start", () => {console.log("start")})
         ;
         // draw text at the end
         let text = seriesId.selectAll("#text-" + domSeriesId)
@@ -284,13 +307,28 @@ class DataVisualizer {
             .attr("dy", "1em");
 
         // ==========  update section
+        let xTranslation = this.x(this.xPrevMax) - this.x(this.xMax);
+        console.log("move [" + dataHolder.id + "] on:" + xTranslation);
         // update line itself
         this.g
             .selectAll("#path-" + domSeriesId)
             .data([dataHolder], d => d.id)
-            .attr("d", d => this.line(d.seriesValues));
+            .attr("d", d => this.line(d.seriesValues))
+            .attr("transform", null)
+        ;
+        // this.pathes.transition()
+        //     .duration(1000)
+        //     .ease(d3.easeLinear)
+        //     .attr("transform", "translate(" + xTranslation + ", 0)");
+        this.xAxis
+            .transition()
+            .duration(1000)
+            .ease(d3.easeLinear)
+            .call(d3.axisBottom(this.x))
+        ;
+        this.yAxis
+            .call(d3.axisLeft(this.y));
 
-        // this.drawCross([dataHolder]);
         if (dataHolder.seriesValues.length === 0) {
             return;
         }

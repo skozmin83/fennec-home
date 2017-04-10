@@ -39,7 +39,7 @@ public class DeviceTemperatureCsvServlet extends HttpServlet {
 //        resp.setHeader("Content-Disposition", "attachment; filename=\"userDirectory.csv\"");
         try {
             OutputStream outputStream = resp.getOutputStream();
-            outputStream.write("id,t,ts\n".getBytes());
+            outputStream.write("sid,t,ts\n".getBytes());
             MongoClient mongoClient = new MongoClient("raspberrypi", 27017);
             MongoDatabase db = mongoClient.getDatabase("mydb");
             MongoCollection<Document> collection = db.getCollection("mycoll");
@@ -53,6 +53,7 @@ public class DeviceTemperatureCsvServlet extends HttpServlet {
             Date from = Date.from(Instant.now().minus(1, ChronoUnit.DAYS));
 //            Bson and = and(eq("sid", "dht22-top"), Filters.regex("topic", "A0:20:A6:16:A6:34"));
             filters.add(Filters.gt("ts", from));
+//            filters.add(Filters.gt("aaa", from));
             collection
                     .find(and(filters))
 //                    .find(or(eq("sid", "dht22-top"), eq("sid", "dht22-bottom")))

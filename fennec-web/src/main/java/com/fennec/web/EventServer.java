@@ -40,7 +40,8 @@ public class EventServer {
         server.setHandler(handlers);
 
         // Add a websocket to a specific path spec
-        context.addServlet(new ServletHolder("ws-events", EventServlet.class), "/events/*");
+        context.addServlet(new ServletHolder("ws-temperature", EventServlet.class), "/temperature.ws");
+//        context.addServlet(new ServletHolder("ws-temperature", TestEventServlet.class), "/temperature.ws");
         context.addServlet(DeviceTemperatureCsvServlet.class, "/temperature.csv");
 
         try {
