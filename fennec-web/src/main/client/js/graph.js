@@ -6,84 +6,152 @@ var dateFormat = require('dateformat');
 
 "use strict";
 module.exports = {
-    loader: (urls) => new DataLoader(urls),
     view: (startElement) => new DataVisualizer(startElement),
     graph: (dataLoader, view) => new DataGraph(dataLoader, view),
+    loader: (url) => new DataLoader(url),
+    dynamicLoader: (url) => new DynamicWebSocketDataLoader(url),
 };
 
 class DataGraph {
-    // dataLoader = null;
-    // dataView = null;
-    constructor(dataLoader, dataView) {
-        this.dataLoader = dataLoader;
+    constructor(dataView) {
         this.dataView = dataView;
+        this.seriesDataArray = [];
+        this.parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
+    }
+
+    load(dataLoader) {
         // series by series draw data
-        this.dataLoader.load(seriesDataArray => {
-            for (let i = 0; i < seriesDataArray.length; i++) {
-                this.dataView.drawSeries(seriesDataArray[i]);
+        dataLoader.load(dataHolder => {
+            this.seriesDataArray[dataHolder.id] = dataHolder;
+            dataHolder.seriesValues.forEach(d => this.enrichDatum(d));
+
+            // adjust domain, todo optimize to a single traverse
+            this.xMin = findMin(d3.min(dataHolder.seriesValues, d => d.time), this.xMin);
+            this.xMax = findMax(d3.max(dataHolder.seriesValues, d => d.time), this.xMax);
+            this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
+            this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
+            this.dataView.resetDomain(this.xMin, this.xMax, this.yMin, this.yMax);
+
+            // redraw
+            this.dataView.drawSeries(dataHolder, this.seriesDataArray);
+        });
+    }
+
+    subscribe(dynamicDataLoader) {
+        dynamicDataLoader.load(incrementalUpdate => {
+            console.log("Update: " + JSON.stringify(incrementalUpdate));
+            let dataHolder = this.seriesDataArray[incrementalUpdate.sid];
+            if (!dataHolder) {
+                dataHolder = new DataHolder(incrementalUpdate.sid, [incrementalUpdate]);
+                this.seriesDataArray[incrementalUpdate.sid] = dataHolder;
+            }
+            this.enrichDatum(incrementalUpdate);
+
+            // drop older than 15 secs from all series, todo parametrize
+            let minTime = Date.now() - 15000;
+            this.dropOlderPoints(this.seriesDataArray, minTime);
+
+            // add new
+            dataHolder.seriesValues.push(incrementalUpdate);
+
+            // adjust domain, todo 1. calculate min/max based only on current values, optimize to a single traverse
+            this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
+            this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
+            this.dataView.resetDomain(new Date(minTime), new Date(), this.yMin, this.yMax);
+
+            // redraw
+            this.dataView.drawSeries(dataHolder, this.seriesDataArray);
+        });
+    }
+
+    dropOlderPoints(seriesDataArray, minTime) {
+        console.log("Min time: " + new Date(minTime) + ", " + minTime);
+        Object.keys(seriesDataArray).forEach(key => {
+            let seriesValuesArray = seriesDataArray[key].seriesValues;
+            while (seriesValuesArray.length > 0) {
+                if (seriesValuesArray[0].timeMillis < minTime
+                    && seriesValuesArray[1] && seriesValuesArray[1].timeMillis < minTime) { // leave 1 point so our graph starts at the 0. todo add clipping
+                    let dropped = seriesValuesArray.shift();
+                    console.log("Drop: " + JSON.stringify(dropped));
+                } else {
+                    break; // assume it's monotonically incremented function, thus everything else is valid
+                }
             }
         });
     }
 
-    incrementalUpdate(updates) {
-        this.dataView.incrementalUpdate(this.dataLoader.seriesDataArray, updates);
+    enrichDatum(d) {
+        // format the data
+        d.time = this.parseTime(d.ts); // todo convert to epoch
+        d.timeMillis = d.time.getTime();
+        d.temperature = +d.t;
+        return d;
     }
 }
 
 class DataHolder {
-    // seriesCallBack;
-    // seriesValues;
-    // id;
-    /**
-     *
-     * @param seriesCallBack function
-     * @param id unique series id
-     */
-    constructor(seriesCallBack, id) {
-        this.seriesCallBack = seriesCallBack;
+    constructor(id, seriesValues) {
         this.id = id;
-        this.seriesValues = [];
-    }
-
-    fetchData(error, data) {
-        if (error) throw error;
-        this.seriesValues = data;
-        this.seriesCallBack(data, this.id);
+        this.seriesValues = seriesValues;
     }
 }
 
 class DataLoader {
-    constructor(urls) {
-        this.countDownSize = urls.length;
-        this.seriesDataArray = [];
-        this.urls = urls;
+    constructor(url) {
+        this.url = url;
     }
 
-    load(allFetchedCallback) {
-        this.seriesCallBack = (data, id) => {
-            "use strict";
-            console.log("Loaded: " + id + ", size: " + data.length);
-            if (--this.countDownSize === 0) {
-                allFetchedCallback(this.seriesDataArray);
-            }
-        };
-
-        for (let i = 0; i < this.urls.length; i++) {
-            let url = this.urls[i];
-            this.seriesDataArray[i] = new DataHolder(this.seriesCallBack, url.id);
-            d3.csv(url.url, (this.seriesDataArray[i].fetchData).bind(this.seriesDataArray[i]));
-        }
+    load(fullSeriesCallback) {
+        d3.csv(this.url.url, (error, data) => {
+            if (error) throw error;
+            fullSeriesCallback(new DataHolder(this.url.id, data))
+        });
     }
 }
+
+class DynamicWebSocketDataLoader {
+    constructor(url) {
+        // this.ws = new WebSocket("ws://localhost:8080/events/");
+        this.url = url;
+    }
+
+    load(incrementalCallback) {
+        this.ws = new WebSocket(this.url);
+        this.ws.onopen = function () {
+            console.log("Connection opened to [" + this.url + "]");
+        };
+
+        this.ws.onclose = function () {
+            console.log("Connection is closed to [" + this.url + "]");
+        };
+        this.bacon = require('baconjs').Bacon;
+        let updateStream = this.bacon.fromEventTarget(this.ws, "message")
+            .map(event => {
+                // console.log("Received message: " + JSON.stringify(event));
+                let holder = JSON.parse(event.data);
+                // graph1.incrementalUpdate(holder);
+                incrementalCallback(holder);
+                return holder;
+            });
+        let editStream = updateStream.filter(function (update) {
+            return update.type === "unspecified";
+        });
+        editStream.onValue(function (results) {
+            console.log(JSON.stringify(results));
+            // graph1.incrementalUpdate(results);
+            // update(results);
+        });
+    }
+}
+
 class DataVisualizer {
     constructor(startElement) { // todo accept element
         // set the dimensions and margins of the graph
         this.margin = {top: 20, right: 160, bottom: 30, left: 50};
         this.width = 960 - this.margin.left - this.margin.right;
         this.height = 500 - this.margin.top - this.margin.bottom;
-        this.parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
 
-// set the ranges
+        // set the ranges
         this.x = d3.scaleTime().range([0, this.width]);
         this.y = d3.scaleLinear().range([this.height, 0]);
         this.z = d3.scaleOrdinal(d3.schemeCategory10);
@@ -140,33 +208,14 @@ class DataVisualizer {
             .y(d => this.y(d.temperature));
     }
 
-    incrementalUpdate(seriesDataArray, dataUpdate) {
-        console.log("Update: " + JSON.stringify(dataUpdate));
-        seriesDataArray.forEach(dataHolder => {
-                if (dataHolder.id === dataUpdate.sid) {
-                    dataHolder.seriesValues.push(dataUpdate);
-                    this.drawSeries(dataHolder);
-                }
-            }
-        );
-    };
+    resetDomain(xMin, xMax, yMin, yMax) {
+        this.x.domain([xMin, xMax]);
+        this.y.domain([yMin, yMax]);
+    }
 
-    drawSeries(dataHolder) {
-        // format the data
-        dataHolder.seriesValues.forEach(d => {
-            d.time = this.parseTime(d.ts);
-            d.timeMillis = d.time.getTime();
-            d.temperature = +d.t;
-        });
+    drawSeries(dataHolder, seriesDataArray) {
         // todo optimize to a single traverse
-        this.xMin = findMin(d3.min(dataHolder.seriesValues, d => d.time), this.xMin);
-        this.xMax = findMax(d3.max(dataHolder.seriesValues, d => d.time), this.xMax);
-        this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
-        this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
-        this.seriesIdsArray = d3.merge(this.seriesIdsArray, [dataHolder.id]);
-
-        this.x.domain([this.xMin, this.xMax]);
-        this.y.domain([this.yMin, this.yMax]);
+        this.seriesIdsArray = d3.merge([this.seriesIdsArray, [dataHolder.id]]);
         this.z.domain(this.seriesIdsArray);
 
         this.xAxis
@@ -190,6 +239,7 @@ class DataVisualizer {
             .append("path")
             .attr("class", "line")
             .attr("id", "path-" + domSeriesId)
+            .style("stroke", d => this.z(d.id))
         ;
         // draw text at the end
         let text = seriesId.selectAll("#text-" + domSeriesId)
@@ -238,8 +288,7 @@ class DataVisualizer {
         this.g
             .selectAll("#path-" + domSeriesId)
             .data([dataHolder], d => d.id)
-            .attr("d", d => this.line(d.seriesValues))
-            .style("stroke", d => this.z(d.id));
+            .attr("d", d => this.line(d.seriesValues));
 
         // this.drawCross([dataHolder]);
         if (dataHolder.seriesValues.length === 0) {
@@ -257,7 +306,7 @@ class DataVisualizer {
             .attr("fill", d => this.z(d.id))
             .text(d => d.id)
             .attr("transform", d => "translate(" + this.x(d.value.time) + "," + this.y(d.value.temperature) + ")");
-        this.inverseMapping = this.calculateInverseMapping([dataHolder]); // todo optimize
+        this.inverseMapping = this.calculateInverseMapping(seriesDataArray); // todo optimize
     }
 
     onMouseMove() {
@@ -312,11 +361,11 @@ class DataVisualizer {
 
     calculateInverseMapping(seriesDataArray) {
         let inverseMapping = [];
-
         // create inverse mapping to quickly find mouse position in merged structure
         // todo we already traverse it above, move there
-        for (let i = 0; i < seriesDataArray.length; i++) {
-            let dataHolder = seriesDataArray[i];
+        Object.keys(seriesDataArray).forEach(key => {
+            // console.log("key:" + JSON.stringify(key) + "data:" + JSON.stringify(seriesDataArray[key]));
+            let dataHolder = seriesDataArray[key];
             let seriesValues = dataHolder.seriesValues;
             loopBySeriesValues:for (let j = 0; j < seriesValues.length; j++) {
                 let dot = seriesValues[j];
@@ -327,7 +376,7 @@ class DataVisualizer {
                 } else { // already contains element
                     // we allow only one dot per series==id
                     for (let k = 0; k < dotsForThisX.length; k++) { // todo can optimize
-                        if (dotsForThisX[k].id === dot.id) {
+                        if (dotsForThisX[k].sid === dot.sid) {
                             // console.log("filter out: " + JSON.stringify(dot));
                             continue loopBySeriesValues; // got to next dot in series
                         }
@@ -336,7 +385,8 @@ class DataVisualizer {
                     dotsForThisX.push(dot);
                 }
             }
-        }
+        });
+        // console.log("inversed:" + JSON.stringify(inverseMapping));
         return inverseMapping;
     }
 }
@@ -351,4 +401,64 @@ function findMin(a, b) {
 
 function findMax(a, b) {
     return (a < b) ? b : a;
+}
+
+class DatesHelper {
+    /**
+     * Converts the date in d to a date-object. The input can be:
+     *   a date object: returned without modification
+     *  an array      : Interpreted as [year,month,day]. NOTE: month is 0-11.
+     *   a number     : Interpreted as number of milliseconds
+     *                  since 1 Jan 1970 (a timestamp)
+     *   a string     : Any format supported by the javascript engine, like
+     *                  "YYYY/MM/DD", "MM/DD/YYYY", "Jan 31 2009" etc.
+     *  an object     : Interpreted as an object with year, month and date
+     *                  attributes.  **NOTE** month is 0-11.
+     */
+    static convert(d) {
+        return (
+            d.constructor === Date ? d :
+                d.constructor === Array ? new Date(d[0], d[1], d[2]) :
+                    d.constructor === Number ? new Date(d) :
+                        d.constructor === String ? new Date(d) :
+                            typeof d === "object" ? new Date(d.year, d.month, d.date) :
+                                NaN
+        );
+    }
+
+    /**
+     * Compare two dates (could be of any type supported by the convert
+     * function above) and returns:
+     *  -1 : if a &lt; b
+     *   0 : if a = b
+     *   1 : if a > b
+     * NaN : if a or b is an illegal date
+     * NOTE: The code inside isFinite does an assignment (=).
+     */
+    static compare(a, b) {
+        return (
+            isFinite(a = this.convert(a).valueOf()) &&
+            isFinite(b = this.convert(b).valueOf()) ?
+                (a > b) - (a < b) :
+                NaN
+        );
+    }
+
+    /**
+     * Checks if date in d is between dates in start and end.
+     * Returns a boolean or NaN:
+     *    true  : if d is between start and end (inclusive)
+     *    false : if d is before start or after end
+     *    NaN   : if one or more of the dates is illegal.
+     * NOTE: The code inside isFinite does an assignment (=).
+     */
+    static inRange(d, start, end) {
+        return (
+            isFinite(d = this.convert(d).valueOf()) &&
+            isFinite(start = this.convert(start).valueOf()) &&
+            isFinite(end = this.convert(end).valueOf()) ?
+                start <= d && d <= end :
+                NaN
+        );
+    }
 }

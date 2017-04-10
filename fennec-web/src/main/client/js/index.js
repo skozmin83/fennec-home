@@ -1,42 +1,59 @@
+let websocketsUrl = "ws://localhost:8080";
+let fullDataUrl = "/temperature.csv";
+let dynamicDataUrl = websocketsUrl + "/temperature.ws";
+
 let device1 = "A0:20:A6:16:A6:34";
+let fullDevice1Sensor1Url = fullDataUrl + "?sid=dht22-top&topic=" + device1;
+let fullDevice1Sensor2Url = fullDataUrl + "?sid=dht22-bottom&topic=" + device1;
+let dynamicDevice1Sensor1Url = dynamicDataUrl + "?sid=dht22-top&topic=" + device1;
+let dynamicDevice1Sensor2Url = dynamicDataUrl + "?sid=dht22-bottom&topic=" + device1;
+
 let device2 = "A0:20:A6:16:A7:0A";
+let fullDevice2Sensor1Url = fullDataUrl + "?sid=dht22-top&topic=" + device2;
+let fullDevice2Sensor2Url = fullDataUrl + "?sid=dht22-bottom&topic=" + device2;
+let dynamicDevice2Sensor1Url = dynamicDataUrl + "?sid=dht22-top&topic=" + device2;
+let dynamicDevice2Sensor2Url = dynamicDataUrl + "?sid=dht22-bottom&topic=" + device2;
+
 let dataGraph = require("./graph.js");
-let graph1 = dataGraph.graph(dataGraph.loader([
-    {url: "/temperature.csv?sid=dht22-bottom&topic=" + device1, id: "dht22-bottom"},
-    {url: "/temperature.csv?sid=dht22-top&topic=" + device1, id: "dht22-bottom"},
-]), dataGraph.view("#area1"));
-let graph2 = dataGraph.graph(dataGraph.loader([
-    {url: "/temperature.csv?sid=dht22-bottom&topic=" + device2, id: "dht22-bottom"},
-    {url: "/temperature.csv?sid=dht22-top&topic=" + device2, id: "dht22-top"},
-]), dataGraph.view("#area2"));
 
+let graph1 = dataGraph.graph(dataGraph.view("#area1"));
+graph1.load(dataGraph.loader({url: fullDevice1Sensor1Url, id: "dht22-top"}));
+graph1.load(dataGraph.loader({url: fullDevice1Sensor2Url, id: "dht22-bottom"}));
+graph1.subscribe(dataGraph.dynamicLoader(dynamicDevice1Sensor1Url));
+graph1.subscribe(dataGraph.dynamicLoader(dynamicDevice1Sensor2Url));
 
-var Bacon = require('baconjs').Bacon;
-// Create our websocket to get wiki updates
-var ws = new WebSocket("ws://localhost:8080/events/");
-ws.onopen = function () {
-    console.log("Connection opened");
-};
+let graph2 = dataGraph.graph(dataGraph.view("#area2"));
+graph2.load(dataGraph.loader({url: fullDevice2Sensor1Url, id: "dht22-top"}));
+graph2.load(dataGraph.loader({url: fullDevice2Sensor2Url, id: "dht22-bottom"}));
+graph2.subscribe(dataGraph.dynamicLoader(dynamicDevice2Sensor1Url));
+graph2.subscribe(dataGraph.dynamicLoader(dynamicDevice2Sensor2Url));
 
-ws.onclose = function () {
-    console.log("Connection is closed...");
-};
-var updateStream = Bacon.fromEventTarget(ws, "message").map(function (event) {
-    var dataString = event.data;
-    // console.log("Received message: " + dataString);
-    graph1.incrementalUpdate(JSON.parse(dataString));
-    return JSON.parse(dataString);
-});
+// var Bacon = require('baconjs').Bacon;
+// // Create our websocket to get wiki updates
+// var ws = new WebSocket("ws://localhost:8080/events/");
+// ws.onopen = function () {
+//     console.log("Connection opened");
+// };
+//
+// ws.onclose = function () {
+//     console.log("Connection is closed...");
+// };
+// var updateStream = Bacon.fromEventTarget(ws, "message").map(function (event) {
+//     var dataString = event.data;
+//     // console.log("Received message: " + dataString);
+//     graph1.incrementalUpdate(JSON.parse(dataString));
+//     return JSON.parse(dataString);
+// });
 // Filter the update stream for unspecified events, which we're taking to
 // mean edits in this case
-var editStream = updateStream.filter(function (update) {
-    return update.type === "unspecified";
-});
-editStream.onValue(function (results) {
-    // console.log(JSON.stringify(results));
-    graph1.incrementalUpdate(results);
-    // update(results);
-});
+// var editStream = updateStream.filter(function (update) {
+//     return update.type === "unspecified";
+// });
+// editStream.onValue(function (results) {
+//     // console.log(JSON.stringify(results));
+//     graph1.incrementalUpdate(results);
+//     // update(results);
+// });
 
 var updatesOverTime = [];
 var maxNumberOfDataPoints = 20;
