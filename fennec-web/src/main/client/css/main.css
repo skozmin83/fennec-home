@@ -32,8 +32,11 @@ body {
 }
 
 .cross-value-text {
-    dx: 8;
-    dy: -.3em;
+}
+
+.title {
+    font-size: 16px;
+    text-decoration: underline;
 }
 
 .horizontal-line {

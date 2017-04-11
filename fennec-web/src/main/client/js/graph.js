@@ -6,8 +6,8 @@ var dateFormat = require('dateformat');
 
 "use strict";
 module.exports = {
-    view: (startElement) => new DataVisualizer(startElement),
-    graph: (dataLoader, view) => new DataGraph(dataLoader, view),
+    view: (title, startElementId) => new DataVisualizer(title, startElementId),
+    graph: (view) => new DataGraph(view),
     loader: (url) => new DataLoader(url),
     dynamicLoader: (url) => new DynamicWebSocketDataLoader(url),
 };
@@ -25,16 +25,22 @@ class DataGraph {
             this.seriesDataArray[dataHolder.id] = dataHolder;
             dataHolder.seriesValues.forEach(d => this.enrichDatum(d));
 
-            // this.seriesDataArray.forEach(dataHolder => {
+            Object.keys(this.seriesDataArray).forEach(key => {
                 // adjust domain, todo optimize to a single traverse
                 this.xMin = findMin(d3.min(dataHolder.seriesValues, d => d.time), this.xMin);
                 this.xMax = findMax(d3.max(dataHolder.seriesValues, d => d.time), this.xMax);
                 this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
                 this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
-            // });
+            });
             this.dataView.resetDomain(this.xMin, this.xMax, this.yMin, this.yMax);
+
             // redraw
-            this.dataView.drawSeries(dataHolder, this.seriesDataArray);
+            Object.keys(this.seriesDataArray).forEach(key => {
+                let dataHolder = this.seriesDataArray[key];
+                this.dataView.drawSeries(dataHolder);
+            });
+
+            this.dataView.refreshMouseMapping(this.seriesDataArray);
         });
     }
 
@@ -61,8 +67,13 @@ class DataGraph {
             this.dataView.resetDomain(new Date(minTime), new Date(), this.yMin, this.yMax);
 
             // redraw
-            this.dataView.drawSeries(dataHolder, this.seriesDataArray);
+            // todo shift the other series instead of re-drawing, faster
+            Object.keys(this.seriesDataArray).forEach(key => {
+                let dataHolder = this.seriesDataArray[key];
+                this.dataView.drawSeries(dataHolder);
+            });
 
+            this.dataView.refreshMouseMapping(this.seriesDataArray);
             // todo recalc mouse cross
         });
     }
@@ -148,7 +159,7 @@ class DynamicWebSocketDataLoader {
 }
 
 class DataVisualizer {
-    constructor(startElement) { // todo accept element
+    constructor(title, startElementId) { // todo accept element
         // set the dimensions and margins of the graph
         this.margin = {top: 20, right: 160, bottom: 30, left: 50};
         this.width = 960 - this.margin.left - this.margin.right;
@@ -168,12 +179,18 @@ class DataVisualizer {
         this.seriesIdsArray = [];
         this.inverseMapping = [];
 
-        this.svg = d3.select("body")
+        this.svg = d3.select(startElementId)
             .append("svg")
             .attr("width", this.width + this.margin.left + this.margin.right)
             .attr("height", this.height + this.margin.top + this.margin.bottom);
         this.g = this.svg.append("g")
             .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
+        this.svg.append("text")
+            .attr("x", (this.width / 2))
+            .attr("y", 10 + (this.margin.top / 2))
+            .attr("text-anchor", "middle")
+            .attr("class", "title")
+            .text(title);
         this.pathes = this.g.append("g")
             .attr("id", "pathes")
         ;
@@ -236,8 +253,7 @@ class DataVisualizer {
         this.y.domain([yMin, yMax]);
     }
 
-    drawSeries(dataHolder, seriesDataArray) {
-        // todo optimize to a single traverse
+    drawSeries(dataHolder) {
         this.seriesIdsArray = d3.merge([this.seriesIdsArray, [dataHolder.id]]);
         this.z.domain(this.seriesIdsArray);
 
@@ -307,8 +323,8 @@ class DataVisualizer {
             .attr("dy", "1em");
 
         // ==========  update section
-        let xTranslation = this.x(this.xPrevMax) - this.x(this.xMax);
-        console.log("move [" + dataHolder.id + "] on:" + xTranslation);
+        // let xTranslation = this.x(this.xPrevMax) - this.x(this.xMax);
+        // console.log("move [" + dataHolder.id + "] on:" + xTranslation);
         // update line itself
         this.g
             .selectAll("#path-" + domSeriesId)
@@ -338,13 +354,9 @@ class DataVisualizer {
                 id: dataHolder.id,
                 value: dataHolder.seriesValues[dataHolder.seriesValues.length - 1]
             }])
-            // .datum(d => d.values.length > 0
-            //     ? {id: d.id, value: d.seriesValues[d.seriesValues.length - 1]}
-            //     : {id: "none", value: {time: "0", temperature: "0"}})
             .attr("fill", d => this.z(d.id))
             .text(d => d.id)
             .attr("transform", d => "translate(" + this.x(d.value.time) + "," + this.y(d.value.temperature) + ")");
-        this.inverseMapping = this.calculateInverseMapping(seriesDataArray); // todo optimize
     }
 
     onMouseMove() {
@@ -365,36 +377,28 @@ class DataVisualizer {
         for (let i = 0; i < pointsArray.length; i++) {
             let d = pointsArray[i];
             if (enteredOnce === false) {
-                this.focus.selectAll(".vertical-line")
-                // .attr("transform", "translate(" + x(d.time) + "," + y(d.temperature) + ")")
+                this.focus
+                    .selectAll(".vertical-line")
                     .attr("transform", "translate(" + this.x(d.time) + "," + 0 + ")")
-                // .attr("y2", height - y(d.temperature))
-                // .attr("y2", height)
                 ;
                 enteredOnce = true;
             }
-            this.focus.selectAll("#cross-" + d.sid)
+            this.focus
+                .selectAll("#cross-" + d.sid)
                 .attr("transform", "translate(" + this.x(d.time) + "," + this.y(d.temperature) + ")");
-            // focus.select("text.y1")
-            //     .attr("transform", "translate(" + x(d.time) + "," + y(d.temperature) + ")")
-            //     .text(d.temperature);
-            this.focus.selectAll("#cross-value-text-" + d.sid)
+            this.focus
+                .selectAll("#cross-value-text-" + d.sid)
                 .attr("transform", "translate(" + this.x(d.time) + "," + this.y(d.temperature) + ")")
                 .text(d.temperature);
-
-            // focus.select("text.y3")
-            //     .attr("transform", "translate(" + x(d.time) + "," + y(d.temperature) + ")")
-            //     .text(formatDate(d.time));
-            //
-            this.focus.selectAll("#cross-time-text-" + d.sid)
+            this.focus
+                .selectAll("#cross-time-text-" + d.sid)
                 .attr("transform", "translate(" + this.x(d.time) + "," + this.y(d.temperature) + ")")
-                // .text(dateFormat(d.time, "mmm dd yyyy HH:MM"));
                 .text(dateFormat(d.time, "mmm dd HH:MM"));
-
-            // focus.select("#horizontal-line-" + i)
-            //     .attr("transform", "translate(" + width * -1 + "," + y(d.temperature) + ")")
-            //     .attr("x2", width + width);
         }
+    }
+
+    refreshMouseMapping(seriesDataArray) { // todo optimize
+        this.inverseMapping = this.calculateInverseMapping(seriesDataArray);
     }
 
     calculateInverseMapping(seriesDataArray) {
