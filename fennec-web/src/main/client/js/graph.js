@@ -32,7 +32,7 @@ class DataGraph {
                 this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
                 this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
             });
-            this.dataView.resetDomain(this.xMin, this.xMax, this.yMin, this.yMax);
+            this.dataView.resetDomain(this.xMin, this.xMax, this.yMin, this.yMax, this.seriesDataArray);
 
             // redraw
             Object.keys(this.seriesDataArray).forEach(key => {
@@ -64,7 +64,7 @@ class DataGraph {
             // adjust domain, todo 1. calculate min/max based only on current values, optimize to a single traverse
             this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
             this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
-            this.dataView.resetDomain(new Date(minTime), new Date(), this.yMin, this.yMax);
+            this.dataView.resetDomain(new Date(minTime), new Date(), this.yMin, this.yMax, this.seriesDataArray);
 
             // redraw
             // todo shift the other series instead of re-drawing, faster
@@ -75,6 +75,14 @@ class DataGraph {
 
             this.dataView.refreshMouseMapping(this.seriesDataArray);
             // todo recalc mouse cross
+        });
+    }
+
+    onZoom() {
+        // redraw
+        Object.keys(this.seriesDataArray).forEach(key => {
+            let dataHolder = this.seriesDataArray[key];
+            this.dataView.drawSeries(dataHolder);
         });
     }
 
@@ -184,6 +192,10 @@ class DataVisualizer {
             .attr("width", this.width + this.margin.left + this.margin.right)
             .attr("height", this.height + this.margin.top + this.margin.bottom);
         this.g = this.svg.append("g")
+        // .call(d3.zoom().on("zoom", () => {
+        //     if (d3.event.sourceEvent && d3.event.sourceEvent.type === "brush") return; // ignore zoom-by-brush
+        //     this.g.attr("transform", d3.event.transform)
+        // }))
             .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
         this.svg.append("text")
             .attr("x", (this.width / 2))
@@ -207,12 +219,32 @@ class DataVisualizer {
             .attr("fill", "#000")
             .text("Temperature, ºC");
 
+        this.zoom = d3.zoom()
+            .scaleExtent([1, 32])
+            .translateExtent([[0, 0], [this.width, this.height]])
+            .extent([[0, 0], [this.width, this.height]])
+            .on("zoom", (this.zoomed).bind(this));
+        this.g.call(this.zoom);
+        // this.zoom = d3.zoom()
+        //     .scaleExtent([1, Infinity])
+        //     .translateExtent([[0, 0], [this.width, this.height]])
+        //     .extent([[0, 0], [this.width, this.height]])
+        //     .on("zoom", zoomed);
+
+        // this.g.append("rect")
+        //     .attr("class", "zoom")
+        //     .attr("width", this.width)
+        //     .attr("height", this.height)
+        //     .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")")
+        // ;
+
         // clipping for path'
         this.g.append("defs").append("clipPath")
             .attr("id", "clip")
             .append("rect")
             .attr("width", this.width)
-            .attr("height", this.height);
+            .attr("height", this.height)
+        ;
 
         this.focus = this.g.append("g")
             .attr("class", "focus")
@@ -241,7 +273,29 @@ class DataVisualizer {
             .y(d => this.y(d.temperature));
     }
 
-    resetDomain(xMin, xMax, yMin, yMax) {
+    zoomed() {
+        var t = d3.event.transform, xt = t.rescaleX(this.x);
+        this.line = d3.line()
+            .curve(d3.curveMonotoneX)
+            .x(d => xt(d.time))
+            .y(d => this.y(d.temperature));
+        // this.g.select(".area").attr("d", this.line.x(d => xt(d.date)));
+        Object.keys(this.seriesDataArray).forEach(key => {
+            let dataHolder = this.seriesDataArray[key];
+            let domSeriesId = "series-" + dataHolder.id;
+            this.g
+                .selectAll("#path-" + domSeriesId)
+                .data([dataHolder], d => d.id)
+                .attr("d", d => this.line(d.seriesValues))
+                .attr("transform", null)
+            ;
+        });
+        // d => this.line(d.seriesValues)
+        // this.g.select(".axis--x").call(xAxis.scale(xt));
+    }
+
+    resetDomain(xMin, xMax, yMin, yMax, seriesDataArray) {
+        this.seriesDataArray = seriesDataArray;
         this.xPrevMin = this.xMin;
         this.xPrevMax = this.xMax;
         this.xMin = xMin;
