@@ -219,6 +219,25 @@ class DataVisualizer {
             .attr("fill", "#000")
             .text("Temperature, ºC");
 
+        // http://bl.ocks.org/crayzeewulf/9719255
+        // this.xGrid = d3.svg.axis()
+        //     .scale(x_scale)
+        //     .orient("bottom")
+        //     .tickSize(-this.height)
+        //     .tickFormat("") ;
+        // this.yGrid = d3.svg.axis()
+        //     .scale(y_scale)
+        //     .orient("left")
+        //     .tickSize(-this.width)
+        //     .tickFormat("") ;
+        // svg.append("g")
+        //     .attr("class", "x grid")
+        //     .attr("transform", "translate(0," + innerheight + ")")
+        //     .call(x_grid) ;
+        // svg.append("g")
+        //     .attr("class", "y grid")
+        //     .call(y_grid) ;
+
         this.zoom = d3.zoom()
             .scaleExtent([1, 32])
             .translateExtent([[0, 0], [this.width, this.height]])

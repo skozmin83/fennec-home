@@ -1,0 +1,1 @@
+platformio serialports monitor --baud 115200 --port COM6
