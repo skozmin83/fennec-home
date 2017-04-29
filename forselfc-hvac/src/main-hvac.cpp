@@ -2,9 +2,10 @@ extern "C" {
 #include "user_interface.h"
 }
 
-#include<DHT.h>
 #include "MqttHvacControlCenter.cpp"
 #include "LogMessageListener.cpp"
+#include "HvacThermostatImpl.cpp"
+#include "MessageDispatcher.cpp"
 
 ADC_MODE(ADC_VCC);
 
@@ -20,10 +21,9 @@ const char *mqttPassword = "yourpassword";
 
 char *mqttSubBase = (char *) "/control";
 
-uint32_t lastPublishTime = 0;
+HvacThermostatImpl thermostat = HvacThermostatImpl();
+MessageDispatcher dispatcher = MessageDispatcher(&thermostat);
 MqttHvacControlCenter *mqttControlCenter;
-int sensorNum = 0;
-LogMessageListener listener = LogMessageListener();
 
 char *readMac(char *toRead) {
     uint8_t mac[6];
@@ -33,13 +33,14 @@ char *readMac(char *toRead) {
 }
 
 void setup() {
-    pinMode(BUILTIN_LED, OUTPUT);
-    digitalWrite(BUILTIN_LED, HIGH);
     Serial.begin(115200);
-    Serial.print("Start: ");
-    mqttControlCenter = new MqttHvacControlCenter(readMac(macAddress), ssid, password, mqttServer, 1883, mqttUsername,
-                                              mqttPassword);
-    mqttControlCenter->subscribe(&listener, mqttSubBase);
+    Serial.println("Start: ");
+    thermostat.setup();
+    mqttControlCenter = new MqttHvacControlCenter(readMac(macAddress), ssid, password, mqttServer, 1883,
+                                                  mqttUsername,
+                                                  mqttPassword);
+    mqttControlCenter->subscribe(&dispatcher, mqttSubBase);
+    Serial.println("Init done.");
 }
 
 void loop() {
@@ -54,4 +55,5 @@ void loop() {
     // reply with status on heartbeat msg
 
     mqttControlCenter->loop();
+    thermostat.loop();
 }

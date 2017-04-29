@@ -1,1 +1,1 @@
-platformio run -t upload --upload-port COM6 && platformio serialports monitor --baud 115200
+platformio run -t upload --upload-port COM7 && platformio serialports monitor --baud 115200

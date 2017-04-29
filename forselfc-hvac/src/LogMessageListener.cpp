@@ -7,9 +7,9 @@
 
 #include "IMessageListener.h"
 
-class LogMessageListener: public IMessageListener {
+class LogMessageListener : public IMessageListener {
 public:
-    void onMessage(char* topic, byte* payload, unsigned int length) {
+    void onMessage(char *topic, uint8_t *payload, unsigned int length) {
         digitalWrite(BUILTIN_LED, LOW);
 
         Serial.print("Message arrived [");

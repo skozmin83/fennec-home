@@ -10,7 +10,6 @@
 class IHvacControlCenter {
 public:
     virtual void subscribe(IMessageListener *listener, char *subTopic) =0;
-    virtual ITemperaturePublisher &getPublisher() =0;
     virtual boolean
     publish(char *baseTopic, char controllerId[18], char *sensorId, float humidity, float temperature, float voltage,
                 uint32_t measureId) = 0;
