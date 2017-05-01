@@ -138,7 +138,7 @@
                         </argument>
                         <argument>-cp</argument>
                         <classpath/>
-                        <argument>org.eclipse.jetty.demo.Main</argument>
+                        <argument>com.fennechome.web.FennecWebServer</argument>
                         <argument>8080</argument>
                     </arguments>
                 </configuration>

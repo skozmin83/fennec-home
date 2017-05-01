@@ -4,12 +4,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.io.UnsupportedEncodingException;
 
-/**
- * Created by sergey on 3/20/2017.
- */
-public class JsonMongoMsgParser {
-    private final DeviceInfo info = new DeviceInfo();
-
+class JsonMongoMsgParser {
     public static String decodeString(ByteBuf in) throws UnsupportedEncodingException {
         return new String(readFixedLengthContent(in), "UTF-8");
     }
@@ -22,12 +17,8 @@ public class JsonMongoMsgParser {
             return new byte[]{};
         }
         int strLen = in.readableBytes();
-//        if (in.readableBytes() < strLen) {
-//            return null;
-//        }
         byte[] strRaw = new byte[strLen];
         in.readBytes(strRaw);
-
         return strRaw;
     }
 }
