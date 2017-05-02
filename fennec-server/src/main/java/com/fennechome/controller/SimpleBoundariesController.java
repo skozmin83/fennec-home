@@ -12,18 +12,18 @@ import java.util.*;
  * Simple controller that keeps temperature in each zone within limits with the given hysteresis
  */
 public class SimpleBoundariesController implements IComfortController, IEventListener {
-    public static final float DEFAULT_TEMP_HYSTERESIS = .5f;
-    public static final float DEFAULT_HYSTERESIS = .5f;
     public static final int MIN_TEMP_TIME_UPDATE_MS = 10000;
+    public static final int FASTEST_DIRECTION_TIME_SWITCH_MS = 1000 * 60 * 10;
     public static final int MIN_TEMP_BAND = 1;
     private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final OppositeDirectionMonitor oppositeDirectionMonitor = new OppositeDirectionMonitor(FASTEST_DIRECTION_TIME_SWITCH_MS);
     private final Map<String, SingleZoneController> zones = new HashMap<>();
     private final IDirectionExecutor executor;
     private final int minTempDistributionSize;
     private final int maxTempDistributionSize;
     private final ITimeProvider timer;
+    private long eventIdWatermark = -1;
     private Direction lastDirection = new Direction();
-    private Direction direction = new Direction();
 
     public SimpleBoundariesController(IEventSource source, IDirectionExecutor executor, int minTempDistributionSize, int maxTempDistributionSize, ITimeProvider timer) {
         this.executor = executor;
@@ -39,59 +39,77 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
 
     @Override
     public void onTemperatureEvent(TemperatureEvent event) {
+        if (checkWatermark(event)) return;
         SingleZoneController zoneController = zones.get(event.zoneId);
         if (zoneController != null) {
             zoneController.onTemperatureEvent(event);
         } else {
             logger.error("Unable to find zone for [" + event + "]. ");
         }
-        publishIfStateChanged();
+        publishIfStateChanged(event.timeMillis);
     }
 
     @Override
     public void onZonePreferencesEvent(ZonePreferencesEvent event) {
+        if (checkWatermark(event)) return;
         SingleZoneController zoneController = zones.get(event.zoneId);
         if (zoneController != null) {
             zoneController.updatePreferences(event);
         } else {
             logger.error("Unable to find zone for [" + event + "]. ");
         }
-        publishIfStateChanged();
+        publishIfStateChanged(event.timeMillis);
     }
 
     @Override
     public void onZoneChangeEvent(ZoneEvent event) {
+        if (checkWatermark(event)) return;
         SingleZoneController zoneController = zones.computeIfAbsent(event.zoneId,
                 k -> new SingleZoneController(event.zoneId, minTempDistributionSize, maxTempDistributionSize, timer));
         zoneController.setDevices(event.devices);
-        publishIfStateChanged();
+        publishIfStateChanged(event.timeMillis);
+    }
+
+    private boolean checkWatermark(FennecEvent event) {
+        if (event.eventId <= eventIdWatermark) {
+            return true;
+        } else {
+            eventIdWatermark = event.eventId;
+        }
+        return false;
     }
 
     @Override
     public void onTimeEvent(TimeEvent event) {
         zones.forEach((s, zoneController) -> zoneController.onTimeEvent(event));
-        publishIfStateChanged();
+        publishIfStateChanged(event.timeMillis);
     }
 
-    private void publishIfStateChanged() {
-        // todo optimize, shouldn't remove all hoses
-        direction.hoseStates.clear();
+    private void publishIfStateChanged(long timeMillis) {
+        // todo pool
+        Direction direction = new Direction();
         ZoneComfortState targetState = ZoneComfortState.OK;
         for (SingleZoneController zone : zones.values()) {
-            if (zone.state == ZoneComfortState.OK) {
-                // if zone is ok, we need to close shutters on all devices
-                changeShutterState(zone, HoseState.SHUT);
-            } else {
-                // if zone is out of comfort, we need to open shutters to modify it
-                changeShutterState(zone, HoseState.OPEN);
-                if (targetState == ZoneComfortState.OK) {
-                    targetState = zone.state;
-                } else {
-                    if (targetState != zone.state) {
-                        // in case one zone target state conflicts with the other just ignore. todo need to inform the user
-                        logger.error("Zone [" + zone.zoneId + "] is in conflict with the other target states. ");
-                        return;
+            switch (zone.state) {
+                case OK: {
+                    // if zone is ok, we need to close shutters on all devices
+                    changeShutterState(zone, direction, HoseState.SHUT);
+                    break;
+                }
+                case TOO_COLD:
+                case TOO_WARM: {
+                    // if zone is out of comfort, we need to open shutters to modify it
+                    changeShutterState(zone, direction, HoseState.OPEN);
+                    if (targetState == ZoneComfortState.OK) {
+                        targetState = zone.state;
+                    } else {
+                        if (targetState != zone.state) {
+                            // in case one zone target state conflicts with the other just ignore. todo need to inform the user
+                            logger.error("Zone [" + zone.zoneId + "] is in conflict with the other target states. ");
+                            return;
+                        }
                     }
+                    break;
                 }
             }
         }
@@ -99,17 +117,18 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
 
         // compare if state changed since last time
         if (!lastDirection.equals(direction)) {
-            direction.id = lastDirection.id + 1;
-            executor.send(direction);
-            // swap
-            Direction tmp = lastDirection;
-            lastDirection = direction;
-            direction = tmp;
+            if (oppositeDirectionMonitor.wantToSwitch(direction.thermostatState, timeMillis)) {
+                direction.id = lastDirection.id + 1;
+                executor.send(direction);
+                lastDirection = direction;
+            } else {
+                logger.warn("Blocking event as potential heat/cool swing event [" + direction + "]");
+            }
         }
     }
 
-    private void changeShutterState(SingleZoneController nextZone, HoseState newState) {
-        for (Device device : nextZone.devices) {
+    private void changeShutterState(SingleZoneController zoneController, Direction direction, HoseState newState) {
+        for (Device device : zoneController.devices) {
             if (device.getType() == DeviceType.HOSE) {
                 direction.hoseStates.put(device.getId(), newState);
             }
@@ -130,7 +149,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
     }
 
     enum ZoneComfortState {
-        TOO_COLD, TOO_WARM, OK
+        TOO_COLD, TOO_WARM, OK, DETECTING
     }
 
     static class SingleZoneController {
@@ -140,7 +159,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
         private final ITimeProvider timer;
         private float tempMax;
         private float tempMin;
-        private ZoneComfortState state = ZoneComfortState.OK;
+        private ZoneComfortState state = ZoneComfortState.DETECTING;
 
         public SingleZoneController(String zoneId, int minTempDistributionSize, int maxTempDistributionSize, ITimeProvider timer) {
             this.timer = timer;
@@ -168,12 +187,13 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
         }
 
         private void evaluate() {
-            if (!temperature.isValid() ||
-                    timer.currentTime() - temperature.getLastTempUpdateTime() > MIN_TEMP_TIME_UPDATE_MS) {
+            if (!temperature.isNotEnoughData()) {
                 // if last update came too long time ago we consider that either:
                 // * sensor went down
                 // * sensor deliberately disabled
                 // so we revert to regular strategy: open all shutters in that area
+                state = ZoneComfortState.DETECTING;
+            } else if (timer.currentTime() - temperature.getLastTempUpdateTime() > MIN_TEMP_TIME_UPDATE_MS) {
                 state = ZoneComfortState.OK;
             } else {
                 float avgCurTemp = temperature.getAvgTmp(5);
@@ -225,8 +245,69 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
             return ret / avtSize;
         }
 
-        public boolean isValid() {
+        public boolean isNotEnoughData() {
             return temperatures.size() >= minTempDistributionSize;
+        }
+    }
+
+    static class OppositeDirectionMonitor {
+        private final long fastestTimeSwitchMs;
+        private ThermostatState lastDirection;
+        private long lastDirectionMs;
+
+        OppositeDirectionMonitor(long fastestDirectionTimeSwitchMs) {
+            this.fastestTimeSwitchMs = fastestDirectionTimeSwitchMs;
+        }
+
+        /**
+         * @param newState
+         * @return true if should go ahead, false if switching direction banned
+         */
+        public boolean wantToSwitch(ThermostatState newState, long eventTime) {
+            boolean propagateEvent = false;
+            boolean lastOppositeDirectionHappenedTooLongAgo = (eventTime - lastDirectionMs) > fastestTimeSwitchMs;
+            if (lastDirection == null || lastOppositeDirectionHappenedTooLongAgo) {
+                switchStateTo(newState, eventTime);
+                propagateEvent = true;
+            } else {
+                switch (newState) {
+                    case COOL:
+                    case COOL_LEVEL_2: {
+                        if (lastDirection != ThermostatState.HEAT
+                                && lastDirection != ThermostatState.HEAT_LEVEL_2
+                                && lastDirection != ThermostatState.EMERGENCY_HEAT) {
+                            switchStateTo(newState, eventTime);
+                            propagateEvent = true;
+                        }
+                        break;
+                    }
+                    case HEAT:
+                    case HEAT_LEVEL_2: {
+                        if (lastDirection != ThermostatState.COOL
+                                && lastDirection != ThermostatState.COOL_LEVEL_2) {
+                            switchStateTo(newState, eventTime);
+                            propagateEvent = true;
+                        }
+                        break;
+                    }
+                    case FAN:
+                    case OFF: {
+                        propagateEvent = true;
+                        break;
+                    }
+                    default:
+                        throw new FennecException("Unable to handle unknown status [" + newState + "]");
+                }
+            }
+            return propagateEvent;
+        }
+
+        private void switchStateTo(ThermostatState newState, long eventTime) {
+            // only switch if not neutral status
+            if (newState != ThermostatState.FAN && newState != ThermostatState.OFF) {
+                lastDirection = newState;
+                lastDirectionMs = eventTime;
+            }
         }
     }
 }

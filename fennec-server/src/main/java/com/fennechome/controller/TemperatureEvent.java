@@ -3,19 +3,16 @@ package com.fennechome.controller;
 /**
  * Created by sergey on 4/29/2017.
  */
-public class TemperatureEvent {
+public class TemperatureEvent extends FennecEvent {
     String zoneId;
     String sensorId;
-    long eventId;
-    long timeMillis;
     float temperature;
     float humidity;
 
-    public TemperatureEvent(String zoneId, String sensorId, long eventId, long timeMillis, float temperature, float humidity) {
+    public TemperatureEvent(long eventId, long timeMillis, String zoneId, String sensorId, float temperature, float humidity) {
+        super(eventId, timeMillis);
         this.zoneId = zoneId;
         this.sensorId = sensorId;
-        this.eventId = eventId;
-        this.timeMillis = timeMillis;
         this.temperature = temperature;
         this.humidity = humidity;
     }
@@ -25,8 +22,6 @@ public class TemperatureEvent {
         return "TemperatureEvent{" +
                 "zoneId='" + zoneId + '\'' +
                 ", sensorId='" + sensorId + '\'' +
-                ", eventId=" + eventId +
-                ", timeMillis=" + timeMillis +
                 ", temperature=" + temperature +
                 ", humidity=" + humidity +
                 '}';

@@ -17,6 +17,18 @@ public class Direction {
         this.hoseStates = hoseStates;
     }
 
+    public long getId() {
+        return id;
+    }
+
+    public ThermostatState getThermostatState() {
+        return thermostatState;
+    }
+
+    public Map<String, HoseState> getHoseStates() {
+        return hoseStates;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
