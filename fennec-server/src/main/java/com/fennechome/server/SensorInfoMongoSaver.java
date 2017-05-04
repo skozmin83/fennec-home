@@ -1,17 +1,19 @@
 package com.fennechome.server;
 
+import com.fennechome.common.FennecException;
 import io.moquette.interception.AbstractInterceptHandler;
 import io.moquette.interception.messages.InterceptPublishMessage;
-import io.netty.buffer.ByteBuf;
 import org.bson.Document;
-
-import java.io.UnsupportedEncodingException;
 
 /**
  * Saves all the information published by devices to a file
  */
-class SensorInfoMongoSaver extends AbstractInterceptHandler implements AutoCloseable {
-    private final MongoStorage st = new MongoStorage();
+public class SensorInfoMongoSaver extends AbstractInterceptHandler implements AutoCloseable {
+    private final MongoStorage st;
+
+    public SensorInfoMongoSaver(MongoStorage st) {
+        this.st = st;
+    }
 
     public String getID() {
         return getClass().getSimpleName();
@@ -32,7 +34,11 @@ class SensorInfoMongoSaver extends AbstractInterceptHandler implements AutoClose
     }
 
     @Override
-    public void close() throws Exception {
-        st.close();
+    public void close() {
+        try {
+            st.close();
+        } catch (Exception e) {
+            throw new FennecException("Unable to close Mongo storage.", e);
+        }
     }
 }

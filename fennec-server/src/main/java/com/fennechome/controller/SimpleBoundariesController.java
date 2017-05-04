@@ -1,5 +1,6 @@
 package com.fennechome.controller;
 
+import com.fennechome.common.FennecException;
 import com.google.common.base.Preconditions;
 import gnu.trove.list.linked.TFloatLinkedList;
 
@@ -24,6 +25,13 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
     private final ITimeProvider timer;
     private long eventIdWatermark = -1;
     private Direction lastDirection = new Direction();
+
+    // todo add same zone sensor differences analysis:
+    // if temp between two sensors is far apart at time 0 do:
+    // * start FAN with hoses in SWING
+    // * monitor gradient of temps difference
+    // * as soon as it's close to 0 - turn it off and save that configuration (gradient profile with staleness timestamp) to zone profile
+    // each time temp diff reaches certain number we need to check that profile and see if FAN would help to mixup the air
 
     public SimpleBoundariesController(IEventSource source, IDirectionExecutor executor, int minTempDistributionSize, int maxTempDistributionSize, ITimeProvider timer) {
         this.executor = executor;

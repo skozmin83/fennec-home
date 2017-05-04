@@ -1,10 +1,11 @@
 package com.fennechome.web;
 
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.pool2.ObjectPool;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.common.io.FutureWriteCallback;
 import org.eclipse.paho.client.mqttv3.*;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -14,33 +15,12 @@ import java.util.Map;
 import java.util.TimeZone;
 
 public class FennecRealtimeWebSocket extends WebSocketAdapter implements IMqttMessageListener {
-    private static final MqttClient sampleClient;
-    private static final String topicBase = "/devices/";
-    private static final String broker = "tcp://raspberrypi:1883";
-    private static final String clientId = "user";
-    private static final String pwd = "yourpassword";
-    private static final MemoryPersistence persistence = new MemoryPersistence();
+    private final String topicBase;
+    private final ObjectPool<MqttClient> pool;
     private final DateFormat df;
-    static {
-        try {
-            sampleClient = new MqttClient(broker, clientId, persistence);
-            MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setPassword(pwd.toCharArray());
-            connOpts.setCleanSession(true);
-            System.out.println("Connecting to broker: " + broker);
-            sampleClient.connect(connOpts);
-            System.out.println("Connected");
-        } catch (MqttException me) {
-            System.out.println("reason " + me.getReasonCode());
-            System.out.println("msg " + me.getMessage());
-            System.out.println("loc " + me.getLocalizedMessage());
-            System.out.println("cause " + me.getCause());
-            System.out.println("excep " + me);
-            me.printStackTrace(System.out);
-            throw new RuntimeException("Unable to connect. ", me);
-        }
-    }
-    public FennecRealtimeWebSocket() {
+    public FennecRealtimeWebSocket(Configuration config, ObjectPool<MqttClient> pool) {
+        topicBase = config.getString("fennec.mqtt.devices-base-topic");
+        this.pool = pool;
         TimeZone tz = TimeZone.getTimeZone("America/New_York");
         //            DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'"); // Quoted "Z" to indicate UTC, no timezone offset
         // Quoted "Z" to indicate UTC, no timezone offset
@@ -99,6 +79,7 @@ public class FennecRealtimeWebSocket extends WebSocketAdapter implements IMqttMe
     private void close() {
 //        try {
 //            sampleClient.disconnect();
+        pool.returnObject(this);
             System.out.println("Disconnected");
 //        } catch (MqttException e) {
 //            e.printStackTrace();

@@ -1,5 +1,6 @@
 package com.fennechome.web;
 
+import com.fennechome.common.FennecException;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -7,10 +8,15 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class FennecWebServer {
-    public static void main(String[] args) {
-        Server server = new Server();
+public class FennecWebServer implements AutoCloseable {
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final Server server;
+
+    public FennecWebServer(String resourceBase) {
+        server = new Server();
         ServerConnector connector = new ServerConnector(server);
         connector.setPort(8080);
         server.addConnector(connector);
@@ -29,7 +35,7 @@ public class FennecWebServer {
         // In this example it is the current directory but it can be configured to anything that the jvm has access to.
         resourceHandler.setDirectoriesListed(true);
         resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
-        resourceHandler.setResourceBase(args.length > 1 ? args[0] : "./fennec-web/src/main/resources/webroot");
+        resourceHandler.setResourceBase(resourceBase);
 //        resourceHandler.setDirAllowed(false);
 
         // Add the ResourceHandler to the server.
@@ -41,14 +47,31 @@ public class FennecWebServer {
         context.addServlet(new ServletHolder("ws-temperature", FennecRealtimeWebSocketServlet.class), "/temperature.ws");
 //        context.addServlet(new ServletHolder("ws-temperature", TestEventServlet.class), "/temperature.ws");
         context.addServlet(DeviceTemperatureCsvServlet.class, "/temperature.csv");
+    }
 
+    public void start() {
         try {
             server.start();
             server.dump(System.err);
+        } catch (Exception e) {
+            throw new FennecException("Unable to start Web UI server. ", e);
+        }
+    }
+
+    public void join() {
+        try {
             server.join();
-        } catch (Throwable t) {
-            t.printStackTrace(System.err);
-            System.exit(0);
+        } catch (InterruptedException e) {
+            throw new FennecException("Unable to join. ", e);
+        }
+    }
+
+    @Override
+    public void close() {
+        try {
+            server.stop();
+        } catch (Exception e) {
+            throw new FennecException("Unable to stop Web UI server. ", e);
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.fennechome.controller;
+package com.fennechome.common;
 
 public class FennecException extends RuntimeException {
     public FennecException() {

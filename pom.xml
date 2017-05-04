@@ -5,6 +5,7 @@
     <modules>
         <module>fennec-web</module>
         <module>fennec-server</module>
+        <module>fennec-common</module>
     </modules>
     <groupId>com.fennechome</groupId>
     <packaging>pom</packaging>
