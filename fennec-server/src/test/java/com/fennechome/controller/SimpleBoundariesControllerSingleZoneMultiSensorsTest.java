@@ -15,7 +15,7 @@ public class SimpleBoundariesControllerSingleZoneMultiSensorsTest extends Contro
         source = new TestListenerCapturer();
         timer = new TestTimeProvider();
         SimpleBoundariesController controller = new SimpleBoundariesController(source, executor, 1, 100, timer);
-
+        controller.start();
         ZoneEvent event = new ZoneEvent(nextId(), 0, "zoneId", Sets.newHashSet(
                 new Device("sensorDeviceIdTop", DeviceType.TEMPERATURE_SENSOR),
                 new Device("sensorDeviceIdBottom", DeviceType.TEMPERATURE_SENSOR),

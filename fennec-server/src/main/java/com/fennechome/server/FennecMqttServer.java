@@ -7,6 +7,7 @@ import io.moquette.server.config.ClasspathResourceLoader;
 import io.moquette.server.config.IConfig;
 import io.moquette.server.config.IResourceLoader;
 import io.moquette.server.config.ResourceLoaderConfig;
+import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,10 +20,10 @@ public class FennecMqttServer implements AutoCloseable {
     private final Server mqttBroker;
     private final List<? extends InterceptHandler> handlers;
 
-    public FennecMqttServer(List<? extends InterceptHandler> handlers) {
+    public FennecMqttServer(List<? extends InterceptHandler> handlers, Configuration config) {
         this.handlers = handlers;
         IResourceLoader classpathLoader = new ClasspathResourceLoader();
-        classPathConfig = new ResourceLoaderConfig(classpathLoader);
+        classPathConfig = new ResourceLoaderConfig(classpathLoader, config.getString("fennec.mqtt.config"));
         mqttBroker = new Server();
     }
 

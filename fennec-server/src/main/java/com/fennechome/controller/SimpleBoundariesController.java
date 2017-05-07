@@ -19,6 +19,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final OppositeDirectionMonitor oppositeDirectionMonitor = new OppositeDirectionMonitor(FASTEST_DIRECTION_TIME_SWITCH_MS);
     private final Map<String, SingleZoneController> zones = new HashMap<>();
+    private final IEventSource source;
     private final IDirectionExecutor executor;
     private final int minTempDistributionSize;
     private final int maxTempDistributionSize;
@@ -34,11 +35,11 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
     // each time temp diff reaches certain number we need to check that profile and see if FAN would help to mixup the air
 
     public SimpleBoundariesController(IEventSource source, IDirectionExecutor executor, int minTempDistributionSize, int maxTempDistributionSize, ITimeProvider timer) {
+        this.source = source;
         this.executor = executor;
         this.minTempDistributionSize = minTempDistributionSize;
         this.maxTempDistributionSize = maxTempDistributionSize;
         this.timer = timer;
-        source.subscribe(this);
     }
 
     public SimpleBoundariesController(IEventSource source, IDirectionExecutor executor, int minTempDistributionSize, int maxTempDistributionSize) {
@@ -156,6 +157,16 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
         return thermostatState;
     }
 
+    @Override
+    public void start() {
+        source.subscribe(this);
+    }
+
+    @Override
+    public void close() {
+        source.unsubscribe(this);
+    }
+
     enum ZoneComfortState {
         TOO_COLD, TOO_WARM, OK, DETECTING
     }
@@ -201,8 +212,8 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
                 // * sensor deliberately disabled
                 // so we revert to regular strategy: open all shutters in that area
                 state = ZoneComfortState.DETECTING;
-            } else if (timer.currentTime() - temperature.getLastTempUpdateTime() > MIN_TEMP_TIME_UPDATE_MS) {
-                state = ZoneComfortState.OK;
+//            } else if (timer.currentTime() - temperature.getLastTempUpdateTime() > MIN_TEMP_TIME_UPDATE_MS) {
+//                state = ZoneComfortState.OK;
             } else {
                 float avgCurTemp = temperature.getAvgTmp(5);
                 if (avgCurTemp > tempMax) {
@@ -235,7 +246,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
         public void temperatureUpdate(TemperatureEvent event) {
             lastTempUpdateTime = event.timeMillis;
             if (temperatures.size() > maxTempDistributionSize) {
-                temperatures.removeAt(temperatures.size());
+                temperatures.removeAt(0); // remove oldest
             }
             temperatures.add(event.temperature);
         }
@@ -248,7 +259,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
             float ret = 0;
             int avtSize = Math.min(lastMeasurements, temperatures.size());
             for (int i = 0; i < avtSize; i++) {
-                ret += temperatures.get(i);
+                ret += temperatures.get(temperatures.size() - 1 - i);
             }
             return ret / avtSize;
         }

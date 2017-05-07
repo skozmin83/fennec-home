@@ -1,6 +1,7 @@
 package com.fennechome.web;
 
 import com.fennechome.common.FennecException;
+import org.apache.commons.configuration2.Configuration;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -15,7 +16,7 @@ public class FennecWebServer implements AutoCloseable {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final Server server;
 
-    public FennecWebServer(String resourceBase) {
+    public FennecWebServer(Configuration configuration, IMqttClientFactory mqttClientFactory, String resourceBase) {
         server = new Server();
         ServerConnector connector = new ServerConnector(server);
         connector.setPort(8080);
@@ -44,7 +45,8 @@ public class FennecWebServer implements AutoCloseable {
         server.setHandler(handlers);
 
         // Add a websocket to a specific path spec
-        context.addServlet(new ServletHolder("ws-temperature", FennecRealtimeWebSocketServlet.class), "/temperature.ws");
+        context.addServlet(new ServletHolder("ws-temperature", new FennecRealtimeWebSocketServlet(configuration, mqttClientFactory)), "/temperature.ws");
+//        context.addServlet(new ServletHolder("ws-temperature", FennecRealtimeWebSocketServlet.class), "/temperature.ws");
 //        context.addServlet(new ServletHolder("ws-temperature", TestEventServlet.class), "/temperature.ws");
         context.addServlet(DeviceTemperatureCsvServlet.class, "/temperature.csv");
     }

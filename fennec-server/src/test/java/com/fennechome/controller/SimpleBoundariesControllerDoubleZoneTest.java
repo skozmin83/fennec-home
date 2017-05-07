@@ -15,6 +15,7 @@ public class SimpleBoundariesControllerDoubleZoneTest extends ControllerTest {
         source = new TestListenerCapturer();
         timer = new TestTimeProvider();
         SimpleBoundariesController controller = new SimpleBoundariesController(source, executor, 1, 100, timer);
+        controller.start();
 
         source.listener.onZoneChangeEvent(new ZoneEvent(nextId(), 0, "zoneId", Sets.newHashSet(
                 new Device("sensorDeviceId", DeviceType.TEMPERATURE_SENSOR),

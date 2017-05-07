@@ -1,5 +1,5 @@
 package com.fennechome.controller;
 
-public interface IComfortController {
-//    void init(IEventSource source, IDirectionExecutor executor);
+public interface IComfortController extends AutoCloseable {
+    void start();
 }

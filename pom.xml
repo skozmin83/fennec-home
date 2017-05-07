@@ -14,6 +14,16 @@
 
     <repositories>
         <repository>
+            <id>bintray</id>
+            <url>https://jcenter.bintray.com</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
             <id>Eclipse Paho Release Repo</id>
             <url>https://repo.eclipse.org/content/repositories/paho-releases/</url>
         </repository>
@@ -37,6 +47,18 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
             <version>1.8.0-alpha2</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/commons-collections/commons-collections -->
+        <dependency>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
+            <version>3.2.2</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/commons-beanutils/commons-beanutils -->
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+            <version>1.9.3</version>
         </dependency>
         <dependency>
             <groupId>javax.json</groupId>
@@ -75,58 +97,58 @@
         </plugins>
     </build>
     <!--<build>-->
-        <!--<plugins>-->
-            <!--<plugin>-->
-                <!--<groupId>org.apache.maven.plugins</groupId>-->
-                <!--<artifactId>maven-assembly-plugin</artifactId>-->
-                <!--<version>2.4</version>-->
-                <!--<executions>-->
-                    <!--<execution>-->
-                        <!--<id>distribution-package</id>-->
-                        <!--<phase>package</phase>-->
-                        <!--<goals>-->
-                            <!--<goal>single</goal>-->
-                        <!--</goals>-->
-                        <!--<configuration>-->
-                            <!--&lt;!&ndash; Specifies the configuration file of the assembly plugin &ndash;&gt;-->
-                            <!--<descriptors>-->
-                                <!--<descriptor>${project.basedir}/src/main/assembly/assembly.xml</descriptor>-->
-                            <!--</descriptors>-->
-                            <!--&lt;!&ndash;<tarLongFileMode>gnu</tarLongFileMode>&ndash;&gt;-->
-                        <!--</configuration>-->
-                    <!--</execution>-->
-                <!--</executions>-->
-            <!--</plugin>-->
-            <!--<plugin>-->
-                <!--<artifactId>maven-antrun-plugin</artifactId>-->
-                <!--<configuration>-->
-                    <!--<tasks>-->
-                        <!--<scp todir="${scp.user}@${scp.host}:/${scp.dirCopyTo}" trust="true" failonerror="false">-->
-                            <!--<fileset dir="${project.build.directory}"/>-->
-                        <!--</scp>-->
-                    <!--</tasks>-->
-                <!--</configuration>-->
-                <!--<dependencies>-->
-                    <!--<dependency>-->
-                        <!--<groupId>ant</groupId>-->
-                        <!--<artifactId>ant-jsch</artifactId>-->
-                        <!--<version>1.6.5</version>-->
-                    <!--</dependency>-->
-                    <!--<dependency>-->
-                        <!--<groupId>com.jcraft</groupId>-->
-                        <!--<artifactId>jsch</artifactId>-->
-                        <!--<version>0.1.42</version>-->
-                    <!--</dependency>-->
-                <!--</dependencies>-->
-                <!--&lt;!&ndash;<executions>&ndash;&gt;-->
-                <!--&lt;!&ndash;<execution>&ndash;&gt;-->
-                <!--&lt;!&ndash;<phase>install</phase>&ndash;&gt;-->
-                <!--&lt;!&ndash;<goals>&ndash;&gt;-->
-                <!--&lt;!&ndash;<goal>run</goal>&ndash;&gt;-->
-                <!--&lt;!&ndash;</goals>&ndash;&gt;-->
-                <!--&lt;!&ndash;</execution>&ndash;&gt;-->
-                <!--&lt;!&ndash;</executions>&ndash;&gt;-->
-            <!--</plugin>-->
-        <!--</plugins>-->
+    <!--<plugins>-->
+    <!--<plugin>-->
+    <!--<groupId>org.apache.maven.plugins</groupId>-->
+    <!--<artifactId>maven-assembly-plugin</artifactId>-->
+    <!--<version>2.4</version>-->
+    <!--<executions>-->
+    <!--<execution>-->
+    <!--<id>distribution-package</id>-->
+    <!--<phase>package</phase>-->
+    <!--<goals>-->
+    <!--<goal>single</goal>-->
+    <!--</goals>-->
+    <!--<configuration>-->
+    <!--&lt;!&ndash; Specifies the configuration file of the assembly plugin &ndash;&gt;-->
+    <!--<descriptors>-->
+    <!--<descriptor>${project.basedir}/src/main/assembly/assembly.xml</descriptor>-->
+    <!--</descriptors>-->
+    <!--&lt;!&ndash;<tarLongFileMode>gnu</tarLongFileMode>&ndash;&gt;-->
+    <!--</configuration>-->
+    <!--</execution>-->
+    <!--</executions>-->
+    <!--</plugin>-->
+    <!--<plugin>-->
+    <!--<artifactId>maven-antrun-plugin</artifactId>-->
+    <!--<configuration>-->
+    <!--<tasks>-->
+    <!--<scp todir="${scp.user}@${scp.host}:/${scp.dirCopyTo}" trust="true" failonerror="false">-->
+    <!--<fileset dir="${project.build.directory}"/>-->
+    <!--</scp>-->
+    <!--</tasks>-->
+    <!--</configuration>-->
+    <!--<dependencies>-->
+    <!--<dependency>-->
+    <!--<groupId>ant</groupId>-->
+    <!--<artifactId>ant-jsch</artifactId>-->
+    <!--<version>1.6.5</version>-->
+    <!--</dependency>-->
+    <!--<dependency>-->
+    <!--<groupId>com.jcraft</groupId>-->
+    <!--<artifactId>jsch</artifactId>-->
+    <!--<version>0.1.42</version>-->
+    <!--</dependency>-->
+    <!--</dependencies>-->
+    <!--&lt;!&ndash;<executions>&ndash;&gt;-->
+    <!--&lt;!&ndash;<execution>&ndash;&gt;-->
+    <!--&lt;!&ndash;<phase>install</phase>&ndash;&gt;-->
+    <!--&lt;!&ndash;<goals>&ndash;&gt;-->
+    <!--&lt;!&ndash;<goal>run</goal>&ndash;&gt;-->
+    <!--&lt;!&ndash;</goals>&ndash;&gt;-->
+    <!--&lt;!&ndash;</execution>&ndash;&gt;-->
+    <!--&lt;!&ndash;</executions>&ndash;&gt;-->
+    <!--</plugin>-->
+    <!--</plugins>-->
     <!--</build>-->
 </project>

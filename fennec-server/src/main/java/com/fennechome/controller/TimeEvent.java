@@ -5,4 +5,11 @@ package com.fennechome.controller;
  */
 public class TimeEvent {
     long timeMillis;
+
+    public TimeEvent() {
+    }
+
+    public TimeEvent(long timeMillis) {
+        this.timeMillis = timeMillis;
+    }
 }
