@@ -7,8 +7,12 @@ import java.io.File;
 
 public class FennecWebUIEntryPoint {
     public static void main(String[] args) {
-        String resourceBase = args.length > 1 ? args[0] : "./fennec-web/src/main/resources/webroot";
-        Configuration config = PropertiesUtil.getConfig(new File("fennechome-ui-server.properties"));
+        if (args.length < 1) {
+            System.out.println("Usage java " + FennecWebUIEntryPoint.class.getSimpleName() + " <config-name> ");
+            System.exit(-1);
+        }
+        Configuration config = PropertiesUtil.getConfig(new File(args[0]));
+        String resourceBase = config.getString("fennec.web.resource-base");
         IMqttClientFactory mqttClientFactory = new MqttClientFactory(config);
         FennecWebServer server = new FennecWebServer(config, mqttClientFactory, resourceBase);
         server.start();

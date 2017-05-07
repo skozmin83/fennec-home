@@ -270,6 +270,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
     }
 
     static class OppositeDirectionMonitor {
+        private final Logger logger = LoggerFactory.getLogger(getClass());
         private final long fastestTimeSwitchMs;
         private ThermostatState lastDirection;
         private long lastDirectionMs;
@@ -297,6 +298,11 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
                                 && lastDirection != ThermostatState.EMERGENCY_HEAT) {
                             switchStateTo(newState, eventTime);
                             propagateEvent = true;
+                        } else {
+                            logger.warn("Last switch to HEATING happened on [" + new Date(lastDirectionMs) +
+                                    "] or [" + (eventTime - lastDirectionMs) / 1000 +
+                                    "] seconds ago. Want to switch to COOLING now. Something is wrong. " +
+                                    "Minimum switching time is [" + fastestTimeSwitchMs / 1000 + "] seconds");
                         }
                         break;
                     }
@@ -306,6 +312,11 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
                                 && lastDirection != ThermostatState.COOL_LEVEL_2) {
                             switchStateTo(newState, eventTime);
                             propagateEvent = true;
+                        } else {
+                            logger.warn("Last switch to COOLING happened on [" + new Date(lastDirectionMs) +
+                                    "] or [" + (eventTime - lastDirectionMs) / 1000 +
+                                    "] seconds ago. Want to switch to HEATING now. Something is wrong. " +
+                                    "Minimum switching time is [" + fastestTimeSwitchMs / 1000 + "] seconds");
                         }
                         break;
                     }

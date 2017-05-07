@@ -14,7 +14,7 @@ public class EventClient {
         URI uri = URI.create("ws://localhost:8080/events/");
 
         WebSocketClient client = new WebSocketClient();
-        Configuration config = PropertiesUtil.getConfig(new File("fennechome-ui-server.properties"));
+        Configuration config = PropertiesUtil.getConfig(new File("fennechome-ui-server-local.properties"));
         IMqttClientFactory mqttClientFactory = new MqttClientFactory(config);
         try {
             try {

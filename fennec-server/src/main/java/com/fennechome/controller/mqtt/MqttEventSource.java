@@ -50,7 +50,7 @@ public class MqttEventSource implements IEventSource, AutoCloseable {
                         TemperatureEvent te = new TemperatureEvent(nextId(), ts, "bedroom", "A0:20:A6:16:A6:34/dht22-top", tempBase + sinPart, 50f);
                         logger.info("Publish event [" + te + "]. ");
                         listener.onTemperatureEvent(te);
-                        listener.onTimeEvent(new TimeEvent(ts));
+//                        listener.onTimeEvent(new TimeEvent(ts));
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                         break;

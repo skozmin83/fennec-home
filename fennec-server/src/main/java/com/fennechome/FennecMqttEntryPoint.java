@@ -22,8 +22,12 @@ public class FennecMqttEntryPoint {
     private static final Logger logger = LoggerFactory.getLogger(FennecMqttEntryPoint.class);
 
     public static void main(String[] args) throws InterruptedException, IOException {
-        logger.info("Starting Fennec MongoDB and MQTT server. ");
-        Configuration config = PropertiesUtil.getConfig(new File("fennechome-mqtt-server.properties"));
+        if (args.length < 1) {
+            System.out.println("Usage java " + FennecMqttEntryPoint.class.getSimpleName() + " <config-name> ");
+            System.exit(-1);
+        }
+        logger.info("Starting Fennec MongoDB and MQTT server with config [" + args[0] + "]. ");
+        Configuration config = PropertiesUtil.getConfig(new File(args[0]));
         MongoStorage storage = new MongoStorage(config);
         SensorInfoMongoSaver mongoSaver = new SensorInfoMongoSaver(storage);
         FennecMqttServer server = new FennecMqttServer(Collections.singletonList(mongoSaver), config);
