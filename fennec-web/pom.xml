@@ -20,6 +20,10 @@
                 <groupId>io.moquette</groupId>
                 <artifactId>moquette-broker</artifactId>
             </dependency>
+            <dependency>
+                <groupId>org.eclipse.paho</groupId>
+                <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
@@ -91,11 +95,6 @@
             <groupId>org.eclipse.jetty.websocket</groupId>
             <artifactId>websocket-client</artifactId>
             <version>${jetty-version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.paho</groupId>
-            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
-            <version>1.0.3-SNAPSHOT</version>
         </dependency>
     </dependencies>
     <build>

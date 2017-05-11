@@ -1,6 +1,7 @@
 package com.fennechome.web;
 
 import com.fennechome.common.FennecException;
+import com.fennechome.common.IMqttClientFactory;
 import org.apache.commons.configuration2.Configuration;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;

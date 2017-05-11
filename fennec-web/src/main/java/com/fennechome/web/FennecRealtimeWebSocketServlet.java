@@ -1,6 +1,7 @@
 package com.fennechome.web;
 
 import com.fennechome.common.FennecException;
+import com.fennechome.common.IMqttClientFactory;
 import org.apache.commons.configuration2.Configuration;
 import org.eclipse.jetty.websocket.servlet.*;
 
@@ -20,7 +21,8 @@ public class FennecRealtimeWebSocketServlet extends WebSocketServlet {
     @Override
     public void configure(WebSocketServletFactory factory) {
         // set a 10 second timeout
-//        factory.getPolicy().setIdleTimeout(10000);
+//        factory.getPolicy().setAsyncWriteTimeout(10000);
+        factory.getPolicy().setIdleTimeout(0);
 //        factory.register(FennecRealtimeWebSocket.class);
         // todo pool as soon as closed
         factory.setCreator((req, resp) -> new FennecRealtimeWebSocket(configuration, mqttClientFactory));

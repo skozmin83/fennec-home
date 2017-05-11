@@ -1,6 +1,7 @@
 package com.fennechome.web;
 
 import com.fennechome.common.FennecException;
+import com.fennechome.common.IMqttClientFactory;
 import org.apache.commons.configuration2.Configuration;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
@@ -11,26 +12,22 @@ import org.slf4j.LoggerFactory;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
+import java.util.*;
 
-public class FennecRealtimeWebSocket extends WebSocketAdapter implements IMqttMessageListener {
+public class FennecRealtimeWebSocket extends WebSocketAdapter {
     private final Logger logger = LoggerFactory.getLogger(getClass());
-    private final String topicBase;
+    private final String devicesBase;
+    private final String controlsBase;
     private final IMqttClientFactory mqttClientFactory;
     private final DateFormat df;
+    private final MqttTempSensorListener sensorsListener = new MqttTempSensorListener();
+    private final MqttThermostatDirectivesListener thermostatDirectivesListener = new MqttThermostatDirectivesListener();
     private FutureWriteCallback callback = new FutureWriteCallback();
-
-    public FennecRealtimeWebSocket(String topicBase, IMqttClientFactory mqttClientFactory, DateFormat df) {
-        this.topicBase = topicBase;
-        this.mqttClientFactory = mqttClientFactory;
-        this.df = df;
-    }
+    private Set<String> subTopics = new HashSet<>();
 
     public FennecRealtimeWebSocket(Configuration config, IMqttClientFactory mqttClientFactory) {
-        topicBase = config.getString("fennec.mqtt.devices-base-topic");
+        devicesBase = config.getString("fennec.mqtt.devices-base-topic");
+        controlsBase = config.getString("fennec.mqtt.control-base-topic");
         this.mqttClientFactory = mqttClientFactory;
         TimeZone tz = TimeZone.getTimeZone("America/New_York");
         //            DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'"); // Quoted "Z" to indicate UTC, no timezone offset
@@ -52,20 +49,27 @@ public class FennecRealtimeWebSocket extends WebSocketAdapter implements IMqttMe
         }
         String sid = sidParams.get(0);
         String device = deviceParams.get(0);
-        subscribe(topicBase + device + "/" + sid);
+        subscribe(devicesBase + device + "/" + sid, sensorsListener);
+
+        List<String> thermostatParams = params.get("thermostat");
+        if (thermostatParams != null && !thermostatParams.isEmpty()) {
+            String thermostat = thermostatParams.get(0);
+            subscribe(controlsBase + thermostat, thermostatDirectivesListener);
+        }
     }
 
-    private void subscribe(String subTopic) {
+    private void subscribe(String subTopic, IMqttMessageListener listener) {
+        subTopics.add(subTopic);
         IMqttClient mqttClient = mqttClientFactory.getMqttClient();
         try {
             logger.info("Subscribing to [" + subTopic + "]. ");
-            mqttClient.subscribe(subTopic, this);
+            mqttClient.subscribe(subTopic, listener);
         } catch (MqttException e) {
             logger.warn("Failed to subscribe to [" + subTopic + "]. ", e);
             // try second time when we know something's wrong
             try {
                 mqttClient.disconnectForcibly();
-                mqttClientFactory.getMqttClient().subscribe(subTopic, this);
+                mqttClientFactory.getMqttClient().subscribe(subTopic, listener);
             } catch (MqttException e1) {
                 throw new FennecException("Unable to subscribe to mqtt server. ", e1);
             }
@@ -80,37 +84,55 @@ public class FennecRealtimeWebSocket extends WebSocketAdapter implements IMqttMe
 
     @Override
     public void onWebSocketClose(int statusCode, String reason) {
-        logger.info("Socket Closed: [" + statusCode + "] " + reason);
+        logger.warn("Socket Closed: [" + statusCode + "] " + reason);
         super.onWebSocketClose(statusCode, reason);
         close();
     }
 
     @Override
     public void onWebSocketError(Throwable cause) {
-        logger.info("Socket error. ", cause);
+        logger.error("Socket error. ", cause);
         super.onWebSocketError(cause);
         close();
     }
 
     private void close() {
-//        try {
-//            mqttClientFactory.getMqttClient().disconnect();
-            logger.info("Disconnected");
-//        } catch (MqttException e) {
-            // ignore
-//        }
+        try {
+            logger.info("Disconnected, unsubscribing from [{}]. ", subTopics);
+            mqttClientFactory.getMqttClient().unsubscribe(subTopics.toArray(new String[subTopics.size()]));
+        } catch (MqttException e) {
+            throw new FennecException("Unable to unsubscribe from [" + subTopics + "]. ", e);
+        }
     }
 
-    @Override
-    public void messageArrived(String topic, MqttMessage message) throws Exception {
-        try {
-            logger.info("Received mqtt TEXT message on topic:" + topic + ", message: " + new String(message.getPayload()));
-            String text = new String(message.getPayload());
-            text = text.replace("}", ", \"ts\": \"" + df.format(new Date()) + "\"}");
-            getRemote().sendString(text, callback);
-        } catch (Exception e) {
-            logger.error("Unable to publish message. ", e);
-            throw new FennecException(e);
+    private class MqttTempSensorListener implements IMqttMessageListener {
+        @Override
+        public void messageArrived(String topic, MqttMessage message) throws Exception {
+            try {
+                String text = new String(message.getPayload());
+//            MessageFormat f = new MessageFormat("\"ts") .format("")
+                text = text.replace("}", ", \"ts\": \"" + df.format(new Date()) + "\", \"etype\":\"TEMPERATURE_SENSOR\"}");
+                logger.info("Publish:" + topic + ", message: " + text);
+                getRemote().sendString(text, callback);
+            } catch (Exception e) {
+                logger.error("Unable to publish message. ", e);
+                throw new FennecException(e);
+            }
+        }
+    }
+
+    private class MqttThermostatDirectivesListener implements IMqttMessageListener {
+        @Override
+        public void messageArrived(String topic, MqttMessage message) throws Exception {
+            try {
+                String text = new String(message.getPayload());
+                text = text.replace("}", ", \"etype\":\"THERMOSTAT\"}");
+                logger.info("Publish:" + topic + ", message: " + text);
+                getRemote().sendString(text, callback);
+            } catch (Exception e) {
+                logger.error("Unable to publish message. ", e);
+                throw new FennecException(e);
+            }
         }
     }
 }

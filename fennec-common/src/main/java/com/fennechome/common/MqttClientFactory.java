@@ -1,6 +1,5 @@
-package com.fennechome.web;
+package com.fennechome.common;
 
-import com.fennechome.common.FennecException;
 import org.apache.commons.configuration2.Configuration;
 import org.eclipse.paho.client.mqttv3.IMqttClient;
 import org.eclipse.paho.client.mqttv3.MqttClient;

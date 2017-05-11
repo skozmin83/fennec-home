@@ -46,7 +46,6 @@ class DataGraph {
 
     subscribe(dynamicDataLoader) {
         dynamicDataLoader.load(incrementalUpdate => {
-            console.log("Update: " + JSON.stringify(incrementalUpdate));
             let dataHolder = this.seriesDataArray[incrementalUpdate.sid];
             if (!dataHolder) {
                 dataHolder = new DataHolder(incrementalUpdate.sid, [incrementalUpdate]);
@@ -133,35 +132,49 @@ class DataLoader {
 
 class DynamicWebSocketDataLoader {
     constructor(url) {
-        // this.ws = new WebSocket("ws://localhost:8080/events/");
         this.url = url;
+        this.maxNumberOfReconnects = 100;
     }
 
     load(incrementalCallback) {
         this.ws = new WebSocket(this.url);
+        this.ws.socketDataLoader = this;
         this.ws.onopen = function () {
             console.log("Connection opened to [" + this.url + "]");
         };
 
         this.ws.onclose = function () {
-            console.log("Connection is closed to [" + this.url + "]");
+            console.log("Connection is closed to [" + this.url + "]. Reconnects left [" + this.socketDataLoader.maxNumberOfReconnects + "]");
+            if (this.socketDataLoader.maxNumberOfReconnects-- > 0) {
+                console.log("Reconnecting to [" + this.url + "]");
+                setTimeout((function () {
+                    return this.load(incrementalCallback);
+                }).bind(this.socketDataLoader), 10000);
+            } else {
+                console.log("Connection is closed, system needs reboot [" + this.url + "]. ");
+                // todo disable control, notify system it needs to reload
+            }
         };
         this.bacon = require('baconjs').Bacon;
         let updateStream = this.bacon.fromEventTarget(this.ws, "message")
             .map(event => {
-                // console.log("Received message: " + JSON.stringify(event));
-                let holder = JSON.parse(event.data);
-                // graph1.incrementalUpdate(holder);
-                incrementalCallback(holder);
-                return holder;
+                console.log(event.data);
+                return JSON.parse(event.data);
             });
-        let editStream = updateStream.filter(function (update) {
-            return update.type === "unspecified";
+        let sensorsStream = updateStream.filter(function (update) {
+            return update.etype === "TEMPERATURE_SENSOR";
+            // return update.type === "unspecified";
         });
-        editStream.onValue(function (results) {
-            console.log(JSON.stringify(results));
-            // graph1.incrementalUpdate(results);
-            // update(results);
+        sensorsStream.onValue(json => {
+            incrementalCallback(json);
+        });
+        let thermostatStream = updateStream.filter(function (update) {
+            return update.etype === 'THERMOSTAT';
+            // return update.type === "unspecified";
+        });
+        thermostatStream.onValue(json => {
+            // incrementalCallback(json);
+            console.log("Thermostat event handler goes here. ");
         });
     }
 }

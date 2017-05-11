@@ -1,4 +1,4 @@
-package com.fennechome.controller.mqtt;
+package com.fennechome.mqtt;
 
 import com.fennechome.controller.*;
 import com.google.common.collect.Sets;
@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Mqtt events source
  */
-public class MqttEventSource implements IEventSource, AutoCloseable {
+public class TestSineEventSource implements IEventSource, AutoCloseable {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private long id = 0;
     private IEventListener listener;

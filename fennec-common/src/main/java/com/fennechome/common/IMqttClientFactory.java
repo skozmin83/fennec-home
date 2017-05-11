@@ -1,4 +1,4 @@
-package com.fennechome.web;
+package com.fennechome.common;
 
 import org.eclipse.paho.client.mqttv3.IMqttClient;
 

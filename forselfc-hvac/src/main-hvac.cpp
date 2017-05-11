@@ -15,7 +15,8 @@ char macAddress[18] = {0};
 const char *ssid = "E7EA3E";
 const char *password = "79296267";
 
-const char *mqttServer = "raspberrypi";
+//const char *mqttServer = "raspberrypi";
+const char *mqttServer = "sergeypc";
 const char *mqttUsername = "user";
 const char *mqttPassword = "yourpassword";
 

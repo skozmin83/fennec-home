@@ -1,10 +1,10 @@
-package com.fennechome.server;
+package com.fennechome.mqtt;
 
 import io.netty.buffer.ByteBuf;
 
 import java.io.UnsupportedEncodingException;
 
-class JsonMongoMsgParser {
+public class JsonMongoMsgParser {
     public static String decodeString(ByteBuf in) throws UnsupportedEncodingException {
         return new String(readFixedLengthContent(in), "UTF-8");
     }

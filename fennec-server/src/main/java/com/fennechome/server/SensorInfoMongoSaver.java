@@ -1,6 +1,8 @@
 package com.fennechome.server;
 
 import com.fennechome.common.FennecException;
+import com.fennechome.mqtt.IMessageListener;
+import com.fennechome.mqtt.JsonMongoMsgParser;
 import io.moquette.interception.AbstractInterceptHandler;
 import io.moquette.interception.messages.InterceptPublishMessage;
 import org.bson.Document;
@@ -8,29 +10,16 @@ import org.bson.Document;
 /**
  * Saves all the information published by devices to a file
  */
-public class SensorInfoMongoSaver extends AbstractInterceptHandler implements AutoCloseable {
+public class SensorInfoMongoSaver implements AutoCloseable, IMessageListener {
     private final MongoStorage st;
 
     public SensorInfoMongoSaver(MongoStorage st) {
         this.st = st;
     }
 
-    public String getID() {
-        return getClass().getSimpleName();
-    }
-
     @Override
-    public void onPublish(InterceptPublishMessage msg) {
-        String topicName = msg.getTopicName();
-        String payload = null;
-        try {
-            payload = JsonMongoMsgParser.decodeString(msg.getPayload());
-            Document dbObject = Document.parse(payload);
-            st.store(dbObject, topicName);
-        } catch (Exception e) {
-            System.out.println("topicName = " + topicName + ", msg: " + payload);
-            e.printStackTrace();
-        }
+    public void onMessage(String topicName, long currentTime, Document json) {
+        st.store(json, topicName);
     }
 
     @Override

@@ -3,9 +3,6 @@ package com.fennechome.controller;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Created by sergey on 4/29/2017.
- */
 public class ZoneEvent extends FennecEvent {
     String zoneId;
     Set<Device> devices = new HashSet<>();

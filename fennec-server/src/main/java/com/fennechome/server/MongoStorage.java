@@ -20,8 +20,6 @@ public class MongoStorage implements AutoCloseable {
     }
 
     public void store(Document deviceInfo, String topicName) {
-        deviceInfo.append("topic", topicName);
-        deviceInfo.append("ts", new Date());
         collection.insertOne(deviceInfo, (result, t) -> {});
     }
 

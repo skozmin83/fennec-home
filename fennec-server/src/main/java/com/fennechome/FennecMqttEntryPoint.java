@@ -2,21 +2,22 @@ package com.fennechome;
 
 import com.fennechome.common.PropertiesUtil;
 import com.fennechome.controller.IComfortController;
-import com.fennechome.controller.IEventListener;
 import com.fennechome.controller.IEventSource;
 import com.fennechome.controller.SimpleBoundariesController;
-import com.fennechome.controller.mqtt.MqttDirectorExecutor;
-import com.fennechome.controller.mqtt.MqttEventSource;
+import com.fennechome.mqtt.LoggingDirectorExecutor;
+import com.fennechome.mqtt.MqttDirectionExecutor;
+import com.fennechome.mqtt.MqttEventSource;
+import com.fennechome.mqtt.MqttInterceptor;
 import com.fennechome.server.FennecMqttServer;
 import com.fennechome.server.MongoStorage;
 import com.fennechome.server.SensorInfoMongoSaver;
+import com.google.common.collect.Lists;
 import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 
 public class FennecMqttEntryPoint {
     private static final Logger logger = LoggerFactory.getLogger(FennecMqttEntryPoint.class);
@@ -26,29 +27,39 @@ public class FennecMqttEntryPoint {
             System.out.println("Usage java " + FennecMqttEntryPoint.class.getSimpleName() + " <config-name> ");
             System.exit(-1);
         }
-        logger.info("Starting Fennec MongoDB and MQTT server with config [" + args[0] + "]. ");
-        Configuration config = PropertiesUtil.getConfig(new File(args[0]));
-        MongoStorage storage = new MongoStorage(config);
-        SensorInfoMongoSaver mongoSaver = new SensorInfoMongoSaver(storage);
-        FennecMqttServer server = new FennecMqttServer(Collections.singletonList(mongoSaver), config);
-        IComfortController controller = initComfortController(config);
+        try {
+            logger.info("Starting Fennec MongoDB and MQTT server with config [" + args[0] + "]. ");
+            Configuration config = PropertiesUtil.getConfig(new File(args[0]));
+            MongoStorage storage = new MongoStorage(config);
+            SensorInfoMongoSaver mongoSaver = new SensorInfoMongoSaver(storage);
+            MqttEventSource mqttEventSource = new MqttEventSource(config);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                controller.close();
-                mongoSaver.close();
-                server.close();
-            } catch (Exception e) {
-                logger.error("Unable to un-initialize Fennec MongoDB and MQTT server. ", e);
-            }
-        }));
-        controller.start();
-        server.start();
-        logger.info("Broker started. ");
+            MqttInterceptor mqttMessagesListener = new MqttInterceptor();
+            mqttMessagesListener.addListener(mongoSaver);
+            mqttMessagesListener.addListener(mqttEventSource);
+            FennecMqttServer server = new FennecMqttServer(Lists.newArrayList(mqttMessagesListener), config);
+            MqttDirectionExecutor mqttDirectionExecutor = new MqttDirectionExecutor(config, server);
+            IComfortController controller = initComfortController(config, mqttEventSource, mqttDirectionExecutor);
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    controller.close();
+                    mongoSaver.close();
+                    server.close();
+                } catch (Exception e) {
+                    logger.error("Unable to un-initialize Fennec MongoDB and MQTT server. ", e);
+                }
+            }));
+            server.start();
+            controller.start();
+            logger.info("Broker started. ");
+        } catch (Throwable t) {
+            t.printStackTrace();
+            System.exit(-2);
+        }
     }
 
-    private static IComfortController initComfortController(Configuration config) {
-        IEventSource eventSource = new MqttEventSource();
-        return new SimpleBoundariesController(eventSource, new MqttDirectorExecutor(), 5, 100);
+    private static IComfortController initComfortController(Configuration config, IEventSource eventSource, MqttDirectionExecutor mqttDirectionExecutor) {
+        return new SimpleBoundariesController(eventSource, mqttDirectionExecutor, 5, 100);
     }
 }
