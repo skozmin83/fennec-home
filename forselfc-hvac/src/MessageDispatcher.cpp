@@ -25,7 +25,7 @@ public:
 
     void onMessage(char *topic, uint8_t *payload, unsigned int length) {
         Serial.print("Dispatching: ");
-        Serial.println(payload[0]);
+        Serial.println(payload[0] - 48);
         switch (payload[0]) {
             case '0': thermostat->onControlMessage(payload, length); break;
             case '1': thermostat->onStatusRequestMessage(payload, length); break;

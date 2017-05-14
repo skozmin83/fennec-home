@@ -22,7 +22,8 @@ public class EventClient {
             try {
                 client.start();
                 // The socket that receives events
-                FennecRealtimeWebSocket socket = new FennecRealtimeWebSocket(config, mqttClientFactory);
+                FennecSensorEventWebSocket socket =
+                        new FennecSensorEventWebSocket(config, new MqttUiEventSource(mqttClientFactory));
                 // Attempt Connect
                 Future<Session> fut = client.connect(socket, uri);
                 // Wait for Connect

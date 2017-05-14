@@ -10,6 +10,8 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
+import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,19 +38,29 @@ public class FennecWebServer implements AutoCloseable {
         // Configure the ResourceHandler. Setting the resource base indicates where the files should be served out of.
         // In this example it is the current directory but it can be configured to anything that the jvm has access to.
         resourceHandler.setDirectoriesListed(true);
-        resourceHandler.setWelcomeFiles(new String[]{ "index.html" });
+        resourceHandler.setWelcomeFiles(new String[]{"index.html"});
         resourceHandler.setResourceBase(resourceBase);
 //        resourceHandler.setDirAllowed(false);
 
         // Add the ResourceHandler to the server.
         HandlerList handlers = new HandlerList();
-        handlers.setHandlers(new Handler[] { resourceHandler, context});
+        handlers.setHandlers(new Handler[]{resourceHandler, context});
         server.setHandler(handlers);
 
         // Add a websocket to a specific path spec
-        context.addServlet(new ServletHolder("ws-temperature", new FennecRealtimeWebSocketServlet(configuration, mqttClientFactory)), "/temperature.ws");
-//        context.addServlet(new ServletHolder("ws-temperature", FennecRealtimeWebSocketServlet.class), "/temperature.ws");
-//        context.addServlet(new ServletHolder("ws-temperature", TestEventServlet.class), "/temperature.ws");
+        try {
+            MqttUiEventSource source = new MqttUiEventSource(mqttClientFactory);
+            WebSocketCreator sensorEventCreator = (req, resp) -> new FennecSensorEventWebSocket(configuration, source);
+            WebSocketServlet sensorWs = new FennecWebSocketServlet(sensorEventCreator);
+            context.addServlet(new ServletHolder("ws-temperature", sensorWs), "/temperature.ws");
+
+
+            WebSocketCreator zoneEventsCreator = (req, resp) -> new FennecZoneEventWebSocket(configuration, source);
+            WebSocketServlet zoneWs = new FennecWebSocketServlet(zoneEventsCreator);
+            context.addServlet(new ServletHolder("ws-zone", zoneWs), "/zone.ws");
+        } catch (Exception e) {
+            throw new FennecException("Unable to get a connection. ");
+        }
         context.addServlet(DeviceTemperatureCsvServlet.class, "/temperature.csv");
     }
 

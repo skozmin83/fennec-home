@@ -19,14 +19,13 @@ public class TestMqttSender {
         int step = 0;
         while(true) {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(300);
+//                Thread.sleep(1000);
                 int tempBase = 23;
-                float sinPart = (float) (Math.sin(Math.toRadians(step++ * 2)) * 3);
-                String msg = "{\"t\":" + (tempBase + sinPart) +
-                        ",\"h\":59.30,\"v\":2.67,\"sid\":\"dht22-top\"}";
+                float sinPart = (float) (Math.sin(Math.toRadians(step++ * 6)) * 3);
+                String msg = "{\"t\":" + (tempBase + sinPart) + ",\"h\":59.30,\"v\":2.67,\"sid\":\"dht22-top\"}";
                 System.out.println("Send: " + msg);
-                mqttClient.publish(topicBase + "A0:20:A6:16:A6:34/dht22-top",
-                        new MqttMessage(msg.getBytes()));
+                mqttClient.publish(topicBase + "A0:20:A6:16:A6:34/dht22-top", new MqttMessage(msg.getBytes()));
             } catch (Exception e) {
                 e.printStackTrace();
                 mqttClient = mqttClientFactory.getMqttClient();

@@ -10,31 +10,52 @@ import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Map;
+import java.util.TimeZone;
 
 public class MqttDirectionExecutor implements IDirectionExecutor {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final String controlUser;
     private final String controlBaseTopic;
+    private final String uiTopic;
     private final String controlThermostatId;
     private final FennecMqttServer server;
+    private final DateFormat df;
 
     public MqttDirectionExecutor(Configuration config, FennecMqttServer server) {
         controlUser = config.getString("fennec.mqtt.control-user");
         controlBaseTopic = config.getString("fennec.mqtt.control-base-topic");
+        uiTopic = config.getString("fennec.mqtt.ui-base-topic");
         controlThermostatId = config.getString("fennec.mqtt.control-thermostat-device-id");
         this.server = server;
+
+
+        TimeZone tz = TimeZone.getTimeZone("America/New_York");
+//        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'"); // Quoted "Z" to indicate UTC, no timezone offset
+        // Quoted "Z" to indicate UTC, no timezone offset
+        df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        df.setTimeZone(tz);
     }
 
     @Override
     public void send(Direction d) {
-        logger.info("Direction sent: {}", d);
-        String message = prepareThermostatMessage(d.getThermostatState());
-        server.internalPublish(controlBaseTopic + controlThermostatId, controlUser, message.getBytes());
+        long ts = System.currentTimeMillis();
+        String controlMessage = prepareThermostatMessage(d.getThermostatState()); // todo propagate ts
+        String uiMessage = prepareUiMessage(d.getThermostatState(), ts);
+        logger.info("Direction sent: {}, control {}, ui {}", d, controlMessage, uiMessage);
+        server.internalPublish(controlBaseTopic + controlThermostatId, controlUser, controlMessage.getBytes());
+        server.internalPublish(uiTopic + controlThermostatId, controlUser, uiMessage.getBytes());
 //        Map<String, HoseState> hoseStates = d.getHoseStates();
 //        for (Map.Entry<String, HoseState> entry : hoseStates.entrySet()) {
 //            server.internalPublish(controlBaseTopic + hoseStates);
 //        }
+    }
+
+    private String prepareUiMessage(ThermostatState thermostatState, long ts) {
+        return "{\"state\":\"" + thermostatState.name()
+                + "\", \"etype\":\"THERMOSTAT\", \"ts\":\"" + df.format(ts) + "\"}";
     }
 
     private String prepareThermostatMessage(ThermostatState thermostatState) {

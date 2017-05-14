@@ -61,3 +61,7 @@ body {
     /*stroke: steelblue;*/
     stroke-width: 2px;
 }
+.segment {
+    fill: steelblue;
+    fill-opacity: .2;
+}
