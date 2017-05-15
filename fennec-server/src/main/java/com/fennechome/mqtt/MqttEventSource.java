@@ -67,8 +67,8 @@ public class MqttEventSource implements IEventSource, AutoCloseable, IMessageLis
                 new Device("A0:20:A6:16:A7:0A/dht22-bottom", DeviceType.TEMPERATURE_SENSOR),
                 new Device("A0:20:A6:16:A7:0A/hose", DeviceType.HOSE)
         )));
-        listener.onZonePreferencesEvent(new ZonePreferencesEvent(nextId(), 0, "bedroom", 22.0f, 24.0f));
-        listener.onZonePreferencesEvent(new ZonePreferencesEvent(nextId(), 0, "livingroom", 22.0f, 24.0f));
+        listener.onZonePreferencesEvent(new ZonePreferencesEvent(nextId(), 0, "bedroom", 21.0f, 24.0f));
+        listener.onZonePreferencesEvent(new ZonePreferencesEvent(nextId(), 0, "livingroom", 21.0f, 24.0f));
 
         // just do sine signal for the time being
 //        t = new Thread(new Runnable() {

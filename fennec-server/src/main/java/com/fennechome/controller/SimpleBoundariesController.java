@@ -71,6 +71,12 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
     }
 
     @Override
+    public void onTimeEvent(TimeEvent event) {
+        zones.forEach((s, zoneController) -> zoneController.onTimeEvent(event));
+        publishIfStateChanged(event.timeMillis);
+    }
+
+    @Override
     public void onZoneChangeEvent(ZoneEvent event) {
         if (checkWatermark(event)) return;
         SingleZoneController zoneController = zones.computeIfAbsent(event.zoneId,
@@ -86,12 +92,6 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
             eventIdWatermark = event.eventId;
         }
         return false;
-    }
-
-    @Override
-    public void onTimeEvent(TimeEvent event) {
-        zones.forEach((s, zoneController) -> zoneController.onTimeEvent(event));
-        publishIfStateChanged(event.timeMillis);
     }
 
     private void publishIfStateChanged(long timeMillis) {
@@ -172,6 +172,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
     }
 
     static class SingleZoneController {
+        private final Logger logger = LoggerFactory.getLogger(getClass());
         private final ZoneTemperatureTrend temperature;
         private final Set<Device> devices = new HashSet<>();
         private final String zoneId;
@@ -189,7 +190,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
 
         public void onTemperatureEvent(TemperatureEvent event) {
             temperature.temperatureUpdate(event);
-            evaluate();
+            switchState(event);
         }
 
         public void updatePreferences(ZonePreferencesEvent event) {
@@ -197,33 +198,42 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
                     "Max temp [" + event.tempMax + "] is too close to [" + event.tempMin + "]");
             this.tempMax = event.tempMax;
             this.tempMin = event.tempMin;
-
-            evaluate();
+            switchState(event);
         }
 
         public void onTimeEvent(TimeEvent event) {
-            evaluate();
+            switchState(event);
         }
 
-        private void evaluate() {
+        private void switchState(Object event) {
+            ZoneComfortState newState = calculateNewState();
+            if (newState != state) {
+                logger.info("Switch state from [" + state + "] to [" + newState + "] because of the event [" + event + "]");
+                state = newState;
+            }
+        }
+
+        private ZoneComfortState calculateNewState() {
+            ZoneComfortState ret;
             if (!temperature.isNotEnoughData()) {
                 // if last update came too long time ago we consider that either:
                 // * sensor went down
                 // * sensor deliberately disabled
                 // so we revert to regular strategy: open all shutters in that area
-                state = ZoneComfortState.DETECTING;
+                ret = ZoneComfortState.DETECTING;
 //            } else if (timer.currentTime() - temperature.getLastTempUpdateTime() > MIN_TEMP_TIME_UPDATE_MS) {
 //                state = ZoneComfortState.OK;
             } else {
                 float avgCurTemp = temperature.getAvgTmp(5);
                 if (avgCurTemp > tempMax) {
-                    state = ZoneComfortState.TOO_WARM;
+                    ret = ZoneComfortState.TOO_WARM;
                 } else if (avgCurTemp < tempMin) {
-                    state = ZoneComfortState.TOO_COLD;
+                    ret = ZoneComfortState.TOO_COLD;
                 } else {
-                    state = ZoneComfortState.OK;
+                    ret = ZoneComfortState.OK;
                 }
             }
+            return ret;
         }
 
         public void setDevices(Set<Device> devices) {

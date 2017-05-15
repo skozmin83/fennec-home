@@ -1,7 +1,8 @@
 // todo move it all to mongo config table
 // todo make it configurable
 
-let websocketsUrl = "ws://raspberrypi:8080";
+// let websocketsUrl = "ws://raspberrypi:8080";
+let websocketsUrl = "ws://" + window.location.hostname + ":" + window.location.port;
 let fullDataUrl = "/temperature.csv";
 let dynamicSensorDataUrl = websocketsUrl + "/temperature.ws";
 let dynamicZoneDataUrl = websocketsUrl + "/zone.ws";

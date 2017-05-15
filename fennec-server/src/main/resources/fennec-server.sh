@@ -29,11 +29,11 @@ else
 fi
 export JAVA
 
-LOG_FILE=$MOQUETTE_HOME/log4j.properties
+LOG_FILE=$MOQUETTE_HOME/config/log4j.properties
 MOQUETTE_PATH=$MOQUETTE_HOME/
 #LOG_CONSOLE_LEVEL=info
 #LOG_FILE_LEVEL=fine
 JAVA_OPTS_SCRIPT="-XX:+HeapDumpOnOutOfMemoryError -Djava.awt.headless=true"
 
-$JAVA -server $JAVA_OPTS $JAVA_OPTS_SCRIPT -Dlog4j.configuration="file:$LOG_FILE" -Dmoquette.path="$MOQUETTE_PATH" -cp "$MOQUETTE_HOME:$MOQUETTE_HOME/libs/*" com.fennechome.FennecMqttEntryPoint
+$JAVA -server $JAVA_OPTS $JAVA_OPTS_SCRIPT -Dlog4j.configuration="file:$LOG_FILE" -Dmoquette.path="$MOQUETTE_PATH" -cp "$MOQUETTE_HOME:$MOQUETTE_HOME/lib/*" com.fennechome.FennecMqttEntryPoint config/fennechome-mqtt-server.properties
 

@@ -18,8 +18,8 @@ class DataGraph {
         this.seriesDataArray = [];
         this.thermostatDataHolder = [];
         this.parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
-        // this.defaultDataRange = 1000 * 60 * 60 * 24;
-        this.defaultDataRange = 1000 * 60;
+        this.defaultDataRange = 1000 * 60 * 60 * 24;
+        // this.defaultDataRange = 1000 * 60;
     }
 
     load(dataLoader) {
@@ -68,15 +68,7 @@ class DataGraph {
             this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
             this.dataView.resetDomain(new Date(minTime), new Date(), this.yMin, this.yMax, this.seriesDataArray, this.thermostatDataHolder);
 
-            // redraw
-            // todo shift the other series instead of re-drawing, faster
-            Object.keys(this.seriesDataArray).forEach(key => {
-                let dataHolder = this.seriesDataArray[key];
-                this.dataView.drawSeries(dataHolder);
-            });
-            this.dataView.drawSegments(this.thermostatDataHolder);
-            this.dataView.refreshMouseMapping(this.seriesDataArray);
-            // todo recalc mouse cross
+            this.redraw();
         });
     }
 
@@ -85,19 +77,21 @@ class DataGraph {
             this.enrichZoneDatum(incrementalZoneUpdate);
             let minTime = Date.now() - this.defaultDataRange;
             this.dropOlderTimePoints(this.thermostatDataHolder, minTime);
-
             // add new
             this.thermostatDataHolder.push(incrementalZoneUpdate);
-
-            // adjust only x domain, not y, as zone data (thermostat) spread vertically
-            // this.yMin = findMin(d3.min(this.thermostatDataHolder, d => d.temperature), this.yMin);
-            // this.yMax = findMax(d3.max(this.thermostatDataHolder, d => d.temperature), this.yMax);
-            // this.dataView.resetDomain(new Date(minTime), new Date(), this.yMin, this.yMax, this.seriesDataArray);
-
-            // redraw
-            // todo shift the other series instead of re-drawing, faster
-            this.dataView.drawSegments(this.thermostatDataHolder);
+            this.redraw();
         });
+    }
+
+    redraw() {
+        // todo shift the other series instead of re-drawing, faster
+        Object.keys(this.seriesDataArray).forEach(key => {
+            let dataHolder = this.seriesDataArray[key];
+            this.dataView.drawSeries(dataHolder);
+        });
+        this.dataView.drawSegments(this.thermostatDataHolder);
+        this.dataView.refreshMouseMapping(this.seriesDataArray);
+        // todo recalc mouse cross
     }
 
     dropOlderSeriesPoints(seriesDataArray, minTime) {
