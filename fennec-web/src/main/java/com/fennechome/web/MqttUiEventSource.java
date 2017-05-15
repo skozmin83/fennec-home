@@ -47,7 +47,7 @@ public class MqttUiEventSource implements IUiEventSource {
             }
         });
         value.add(l);
-        logger.info("Subscribed to {}, listeners state {} ", topic, listeners);
+        logger.info("Subscribed to {}, listeners {} listeners state {} ", topic, listeners.size(), listeners);
     }
 
     @Override
@@ -56,7 +56,7 @@ public class MqttUiEventSource implements IUiEventSource {
         for (TopicListener topicListeners : listeners.values()) {
             topicListeners.remove(l);
         }
-        logger.info("Unsubscribed from {}, listeners state {} ", topic, listeners);
+        logger.info("Unsubscribed from {}, listeners {} listeners state {} ", topic, listeners.size(), listeners);
     }
 
     static class TopicListener extends HashSet<IUiEventListener> implements Set<IUiEventListener>, IMqttMessageListener {

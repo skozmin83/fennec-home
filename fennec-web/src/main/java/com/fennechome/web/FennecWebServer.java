@@ -2,6 +2,7 @@ package com.fennechome.web;
 
 import com.fennechome.common.FennecException;
 import com.fennechome.common.IMqttClientFactory;
+import com.fennechome.common.MongoSyncStorage;
 import org.apache.commons.configuration2.Configuration;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -54,14 +55,14 @@ public class FennecWebServer implements AutoCloseable {
             WebSocketServlet sensorWs = new FennecWebSocketServlet(sensorEventCreator);
             context.addServlet(new ServletHolder("ws-temperature", sensorWs), "/temperature.ws");
 
-
             WebSocketCreator zoneEventsCreator = (req, resp) -> new FennecZoneEventWebSocket(configuration, source);
             WebSocketServlet zoneWs = new FennecWebSocketServlet(zoneEventsCreator);
             context.addServlet(new ServletHolder("ws-zone", zoneWs), "/zone.ws");
         } catch (Exception e) {
             throw new FennecException("Unable to get a connection. ");
         }
-        context.addServlet(DeviceTemperatureCsvServlet.class, "/temperature.csv");
+        DeviceTemperatureCsvServlet csvServlet = new DeviceTemperatureCsvServlet(new MongoSyncStorage(configuration));
+        context.addServlet(new ServletHolder("csv-sensors", csvServlet), "/temperature.csv");
     }
 
     public void start() {

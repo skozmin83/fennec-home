@@ -32,12 +32,6 @@
             <artifactId>fennec-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- MongoDB Java Driver -->
-        <dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>mongodb-driver</artifactId>
-            <version>3.4.2</version>
-        </dependency>
         <!-- JSTL libraries for JSP pages -->
         <dependency>
             <groupId>jstl</groupId>

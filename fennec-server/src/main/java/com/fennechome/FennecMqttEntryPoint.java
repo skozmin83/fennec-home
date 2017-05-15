@@ -4,12 +4,11 @@ import com.fennechome.common.PropertiesUtil;
 import com.fennechome.controller.IComfortController;
 import com.fennechome.controller.IEventSource;
 import com.fennechome.controller.SimpleBoundariesController;
-import com.fennechome.mqtt.LoggingDirectorExecutor;
 import com.fennechome.mqtt.MqttDirectionExecutor;
 import com.fennechome.mqtt.MqttEventSource;
 import com.fennechome.mqtt.MqttInterceptor;
 import com.fennechome.server.FennecMqttServer;
-import com.fennechome.server.MongoStorage;
+import com.fennechome.common.MongoAsyncStorage;
 import com.fennechome.server.SensorInfoMongoSaver;
 import com.google.common.collect.Lists;
 import org.apache.commons.configuration2.Configuration;
@@ -30,7 +29,7 @@ public class FennecMqttEntryPoint {
         try {
             logger.info("Starting Fennec MongoDB and MQTT server with config [" + args[0] + "]. ");
             Configuration config = PropertiesUtil.getConfig(new File(args[0]));
-            MongoStorage storage = new MongoStorage(config);
+            MongoAsyncStorage storage = new MongoAsyncStorage(config);
             SensorInfoMongoSaver mongoSaver = new SensorInfoMongoSaver(storage);
             MqttEventSource mqttEventSource = new MqttEventSource(config);
 

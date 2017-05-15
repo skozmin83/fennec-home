@@ -1,19 +1,17 @@
 package com.fennechome.server;
 
 import com.fennechome.common.FennecException;
+import com.fennechome.common.MongoAsyncStorage;
 import com.fennechome.mqtt.IMessageListener;
-import com.fennechome.mqtt.JsonMongoMsgParser;
-import io.moquette.interception.AbstractInterceptHandler;
-import io.moquette.interception.messages.InterceptPublishMessage;
 import org.bson.Document;
 
 /**
  * Saves all the information published by devices to a file
  */
 public class SensorInfoMongoSaver implements AutoCloseable, IMessageListener {
-    private final MongoStorage st;
+    private final MongoAsyncStorage st;
 
-    public SensorInfoMongoSaver(MongoStorage st) {
+    public SensorInfoMongoSaver(MongoAsyncStorage st) {
         this.st = st;
     }
 
