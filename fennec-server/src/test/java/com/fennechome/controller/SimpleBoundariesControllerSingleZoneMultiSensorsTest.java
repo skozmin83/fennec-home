@@ -1,7 +1,6 @@
 package com.fennechome.controller;
 
 import com.google.common.collect.Sets;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -14,7 +13,8 @@ public class SimpleBoundariesControllerSingleZoneMultiSensorsTest extends Contro
         executor = new TestDirectionCapturer();
         source = new TestListenerCapturer();
         timer = new TestTimeProvider();
-        SimpleBoundariesController controller = new SimpleBoundariesController(source, executor, 1, 100, timer);
+        FennecSimpleBoundariesController
+                controller = new FennecSimpleBoundariesController(source, executor, 1, 100, timer);
         controller.start();
         ZoneEvent event = new ZoneEvent(nextId(), 0, "zoneId", Sets.newHashSet(
                 new Device("sensorDeviceIdTop", DeviceType.TEMPERATURE_SENSOR),

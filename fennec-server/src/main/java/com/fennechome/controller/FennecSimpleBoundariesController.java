@@ -12,14 +12,15 @@ import java.util.*;
 /**
  * Simple controller that keeps temperature in each zone within limits with the given hysteresis
  */
-public class SimpleBoundariesController implements IComfortController, IEventListener {
+public class FennecSimpleBoundariesController implements IFennecComfortController,
+        IFennecControllerEventSource.IFennectControllerEventListener {
     public static final int MIN_TEMP_TIME_UPDATE_MS = 10000;
     public static final int FASTEST_DIRECTION_TIME_SWITCH_MS = 1000 * 60 * 10;
     public static final int MIN_TEMP_BAND = 1;
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final OppositeDirectionMonitor oppositeDirectionMonitor = new OppositeDirectionMonitor(FASTEST_DIRECTION_TIME_SWITCH_MS);
     private final Map<String, SingleZoneController> zones = new HashMap<>();
-    private final IEventSource source;
+    private final IFennecControllerEventSource source;
     private final IDirectionExecutor executor;
     private final int minTempDistributionSize;
     private final int maxTempDistributionSize;
@@ -34,7 +35,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
     // * as soon as it's close to 0 - turn it off and save that configuration (gradient profile with staleness timestamp) to zone profile
     // each time temp diff reaches certain number we need to check that profile and see if FAN would help to mixup the air
 
-    public SimpleBoundariesController(IEventSource source, IDirectionExecutor executor, int minTempDistributionSize, int maxTempDistributionSize, ITimeProvider timer) {
+    public FennecSimpleBoundariesController(IFennecControllerEventSource source, IDirectionExecutor executor, int minTempDistributionSize, int maxTempDistributionSize, ITimeProvider timer) {
         this.source = source;
         this.executor = executor;
         this.minTempDistributionSize = minTempDistributionSize;
@@ -42,7 +43,7 @@ public class SimpleBoundariesController implements IComfortController, IEventLis
         this.timer = timer;
     }
 
-    public SimpleBoundariesController(IEventSource source, IDirectionExecutor executor, int minTempDistributionSize, int maxTempDistributionSize) {
+    public FennecSimpleBoundariesController(IFennecControllerEventSource source, IDirectionExecutor executor, int minTempDistributionSize, int maxTempDistributionSize) {
         this(source, executor, minTempDistributionSize, maxTempDistributionSize, new CurrentTimeProvider());
     }
 

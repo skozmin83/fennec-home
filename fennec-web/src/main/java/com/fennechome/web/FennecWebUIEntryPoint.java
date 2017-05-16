@@ -16,7 +16,11 @@ public class FennecWebUIEntryPoint {
         try {
             Configuration config = PropertiesUtil.getConfig(new File(args[0]));
             String resourceBase = config.getString("fennec.web.resource-base");
-            IMqttClientFactory mqttClientFactory = new MqttClientFactory(config);
+            MqttClientFactory mqttClientFactory = new MqttClientFactory(
+                    config.getString("fennec.mqtt.ui.broker"),
+                    config.getString("fennec.mqtt.ui.user"),
+                    config.getString("fennec.mqtt.ui.pwd")
+            );
             FennecWebServer server = new FennecWebServer(config, mqttClientFactory, resourceBase);
             server.start();
             Runtime.getRuntime().addShutdownHook(new Thread(server::close));

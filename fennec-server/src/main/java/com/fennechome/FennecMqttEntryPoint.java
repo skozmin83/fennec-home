@@ -1,12 +1,14 @@
 package com.fennechome;
 
+import com.fennechome.common.FennecMqttEventSource;
+import com.fennechome.common.IFennecEventSource;
+import com.fennechome.common.MqttClientFactory;
 import com.fennechome.common.PropertiesUtil;
-import com.fennechome.controller.IComfortController;
-import com.fennechome.controller.IEventSource;
-import com.fennechome.controller.SimpleBoundariesController;
+import com.fennechome.controller.IFennecComfortController;
+import com.fennechome.controller.IFennecControllerEventSource;
+import com.fennechome.controller.FennecSimpleBoundariesController;
+import com.fennechome.mqtt.FennecMqttControllerEventSource;
 import com.fennechome.mqtt.MqttDirectionExecutor;
-import com.fennechome.mqtt.MqttEventSource;
-import com.fennechome.mqtt.MqttInterceptor;
 import com.fennechome.server.FennecMqttServer;
 import com.fennechome.common.MongoAsyncStorage;
 import com.fennechome.server.SensorInfoMongoSaver;
@@ -17,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 
 public class FennecMqttEntryPoint {
     private static final Logger logger = LoggerFactory.getLogger(FennecMqttEntryPoint.class);
@@ -29,21 +32,30 @@ public class FennecMqttEntryPoint {
         try {
             logger.info("Starting Fennec MongoDB and MQTT server with config [" + args[0] + "]. ");
             Configuration config = PropertiesUtil.getConfig(new File(args[0]));
-            MongoAsyncStorage storage = new MongoAsyncStorage(config);
-            SensorInfoMongoSaver mongoSaver = new SensorInfoMongoSaver(storage);
-            MqttEventSource mqttEventSource = new MqttEventSource(config);
 
-            MqttInterceptor mqttMessagesListener = new MqttInterceptor();
-            mqttMessagesListener.addListener(mongoSaver);
-            mqttMessagesListener.addListener(mqttEventSource);
-            FennecMqttServer server = new FennecMqttServer(Lists.newArrayList(mqttMessagesListener), config);
+            FennecMqttControllerEventSource controllerEventSource = new FennecMqttControllerEventSource(config);
+
+            String tempCollection = config.getString("fennec.mongo.sensor.temperature.collection");
+            String zoneEventsCollection = config.getString("fennec.mongo.zone-events.collection");
+            MongoAsyncStorage storage = new MongoAsyncStorage(config);
+            SensorInfoMongoSaver temperatureMongoSaver = new SensorInfoMongoSaver(storage, tempCollection);
+            SensorInfoMongoSaver zoneEventsMongoSaver = new SensorInfoMongoSaver(storage, zoneEventsCollection);
+
+            MqttClientFactory mqttClientFactory = new MqttClientFactory(
+                    config.getString("fennec.mqtt.controller.broker"),
+                    config.getString("fennec.mqtt.controller.user"),
+                    config.getString("fennec.mqtt.controller.pwd")
+            );
+            FennecMqttServer server = new FennecMqttServer(Collections.emptyList(), config);
             MqttDirectionExecutor mqttDirectionExecutor = new MqttDirectionExecutor(config, server);
-            IComfortController controller = initComfortController(config, mqttEventSource, mqttDirectionExecutor);
+            IFennecComfortController controller =
+                    initComfortController(config, controllerEventSource, mqttDirectionExecutor);
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
                     controller.close();
-                    mongoSaver.close();
+                    mqttClientFactory.close();
+                    storage.close();
                     server.close();
                 } catch (Exception e) {
                     logger.error("Unable to un-initialize Fennec MongoDB and MQTT server. ", e);
@@ -51,6 +63,12 @@ public class FennecMqttEntryPoint {
             }));
             server.start();
             controller.start();
+
+            IFennecEventSource mqttEventSource = new FennecMqttEventSource(mqttClientFactory);
+            mqttEventSource.subscribe(config.getString("fennec.mqtt.devices-base-topic") + "#", controllerEventSource);
+            mqttEventSource.subscribe(config.getString("fennec.mqtt.devices-base-topic") + "#", temperatureMongoSaver);
+            mqttEventSource.subscribe(config.getString("fennec.mqtt.ui-base-topic") + "#", zoneEventsMongoSaver);
+
             logger.info("Broker started. ");
         } catch (Throwable t) {
             t.printStackTrace();
@@ -58,7 +76,9 @@ public class FennecMqttEntryPoint {
         }
     }
 
-    private static IComfortController initComfortController(Configuration config, IEventSource eventSource, MqttDirectionExecutor mqttDirectionExecutor) {
-        return new SimpleBoundariesController(eventSource, mqttDirectionExecutor, 5, 100);
+    private static IFennecComfortController initComfortController(Configuration config,
+                                                                  IFennecControllerEventSource eventSource,
+                                                                  MqttDirectionExecutor mqttDirectionExecutor) {
+        return new FennecSimpleBoundariesController(eventSource, mqttDirectionExecutor, 5, 100);
     }
 }

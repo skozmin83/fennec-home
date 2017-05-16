@@ -1,7 +1,10 @@
 package com.fennechome.web;
 
 import com.fennechome.common.FennecException;
+import com.fennechome.common.IFennecEventSource;
+import com.fennechome.common.JsonSerializer;
 import org.apache.commons.configuration2.Configuration;
+import org.bson.Document;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.common.io.FutureWriteCallback;
@@ -18,12 +21,12 @@ import java.util.TimeZone;
 public class FennecSensorEventWebSocket extends WebSocketAdapter {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final String devicesBaseTopic;
-    private final IUiEventSource source;
+    private final IFennecEventSource source;
     private final DateFormat df;
     private final MqttTempSensorListener sensorsListener = new MqttTempSensorListener();
     private FutureWriteCallback callback = new FutureWriteCallback();
 
-    public FennecSensorEventWebSocket(Configuration config, IUiEventSource source) {
+    public FennecSensorEventWebSocket(Configuration config, IFennecEventSource source) {
         devicesBaseTopic = config.getString("fennec.mqtt.devices-base-topic");
         this.source = source;
         TimeZone tz = TimeZone.getTimeZone("America/New_York");
@@ -51,7 +54,7 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
         subscribe(sensorTopic, sensorsListener);
     }
 
-    private void subscribe(String subTopic, IUiEventSource.IUiEventListener listener) {
+    private void subscribe(String subTopic, IFennecEventSource.Listener listener) {
         source.subscribe(subTopic, listener);
     }
 
@@ -80,7 +83,8 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
         source.unsubscribe(sensorsListener.topic, sensorsListener);
     }
 
-    private class MqttTempSensorListener implements IUiEventSource.IUiEventListener {
+    private class MqttTempSensorListener implements IFennecEventSource.Listener {
+        private final JsonSerializer serializer = new JsonSerializer();
         private String topic;
 
         public void setTopic(String topic) {
@@ -88,13 +92,12 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
         }
 
         @Override
-        public void onEvent(String topic, String text) {
+        public void onEvent(String topic, Document json) {
             try {
-//            MessageFormat f = new MessageFormat("\"ts") .format("")
-                text = text.replace("}",
-                                    ", \"ts\": \"" + df.format(new Date()) + "\", \"etype\":\"TEMPERATURE_SENSOR\"}");
-                logger.info("Publish:" + topic + ", message: " + text);
-                getRemote().sendString(text, callback);
+                json.append("ts", df.format(new Date()));
+                json.append("etype", "TEMPERATURE_SENSOR");
+                logger.info("Publish:" + topic + ", message: " + json);
+                getRemote().sendString(serializer.serialize(json), callback);
             } catch (Exception e) {
                 logger.error("Unable to publish message. ", e);
                 throw new FennecException(e);

@@ -1,29 +1,28 @@
 package com.fennechome.web;
 
 import com.fennechome.common.FennecException;
+import com.fennechome.common.IFennecEventSource;
+import com.fennechome.common.JsonSerializer;
 import org.apache.commons.configuration2.Configuration;
+import org.bson.Document;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.common.io.FutureWriteCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
 public class FennecZoneEventWebSocket extends WebSocketAdapter {
     private final Logger logger = LoggerFactory.getLogger(getClass());
-    private final String uiBaseTopic;
-    private final IUiEventSource source;
+    private final String             uiBaseTopic;
+    private final IFennecEventSource source;
     private final MqttThermostatDirectivesListener thermostatDirectivesListener =
             new MqttThermostatDirectivesListener();
-    private FutureWriteCallback callback = new FutureWriteCallback();
+    private       FutureWriteCallback              callback                     = new FutureWriteCallback();
 
-    public FennecZoneEventWebSocket(Configuration config, IUiEventSource source) {
+    public FennecZoneEventWebSocket(Configuration config, IFennecEventSource source) {
         uiBaseTopic = config.getString("fennec.mqtt.ui-base-topic");
         this.source = source;
     }
@@ -38,14 +37,10 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
             String thermostat = thermostatParams.get(0);
             String thermostatTopic = uiBaseTopic + thermostat;
             thermostatDirectivesListener.setTopic(thermostatTopic);
-            subscribe(thermostatTopic, thermostatDirectivesListener);
+            source.subscribe(thermostatTopic, thermostatDirectivesListener);
         } else {
             throw new IllegalArgumentException("[sid] and [topic] params, must be present. ");
         }
-    }
-
-    private void subscribe(String subTopic, IUiEventSource.IUiEventListener listener) {
-        source.subscribe(subTopic, listener);
     }
 
     @Override
@@ -73,7 +68,8 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
         source.unsubscribe(thermostatDirectivesListener.topic, thermostatDirectivesListener);
     }
 
-    private class MqttThermostatDirectivesListener implements IUiEventSource.IUiEventListener {
+    private class MqttThermostatDirectivesListener implements IFennecEventSource.Listener {
+        private final JsonSerializer serializer = new JsonSerializer();
         private String topic;
 
         public void setTopic(String topic) {
@@ -81,10 +77,10 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
         }
 
         @Override
-        public void onEvent(String topic, String text) {
+        public void onEvent(String topic, Document json) {
             try {
-                logger.info("Publish:" + topic + ", message: " + text);
-                getRemote().sendString(text, callback);
+                logger.info("Publish:" + topic + ", message: " + json);
+                getRemote().sendString(serializer.serialize(json), callback);
             } catch (Exception e) {
                 logger.error("Unable to publish message. ", e);
                 throw new FennecException(e);
@@ -98,4 +94,5 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
                     '}';
         }
     }
+
 }

@@ -7,22 +7,29 @@ import com.mongodb.async.client.MongoDatabase;
 import org.apache.commons.configuration2.Configuration;
 import org.bson.Document;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class MongoAsyncStorage implements AutoCloseable {
-    private final MongoCollection<Document> collection;
-    private final MongoClient mongoClient;
+    private final Map<String, MongoCollection<Document>> collections = new HashMap<>();
+    private final MongoClient   mongoClient;
+    private final MongoDatabase database;
 
     public MongoAsyncStorage(Configuration config) {
         mongoClient = MongoClients.create(config.getString("fennec.mongo.connection-string"));
-        MongoDatabase database = mongoClient.getDatabase(config.getString("fennec.mongo.database-name"));
-        collection = database.getCollection(config.getString("fennec.mongo.collection"));
+        database = mongoClient.getDatabase(config.getString("fennec.mongo.database-name"));
     }
 
-    public void store(Document deviceInfo, String topicName) {
-        collection.insertOne(deviceInfo, (result, t) -> {});
+    public void store(String store, Document deviceInfo) {
+        getCollection(store).insertOne(deviceInfo, (result, t) -> {});
     }
 
-    public void load(Loader loader) {
-        loader.load(collection);
+    public void load(String collection, Loader loader) {
+        loader.load(getCollection(collection));
+    }
+
+    private MongoCollection<Document> getCollection(String store) {
+        return collections.computeIfAbsent(store, database::getCollection);
     }
 
     @Override

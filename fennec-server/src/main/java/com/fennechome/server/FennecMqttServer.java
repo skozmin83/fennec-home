@@ -39,6 +39,7 @@ public class FennecMqttServer implements AutoCloseable {
         }
     }
 
+    @Deprecated
     public void internalPublish(String topic, String forClientId, byte[] payload) {
         MqttPublishMessage message = MessageBuilder.publish()
                 .topicName(topic)

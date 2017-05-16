@@ -14,7 +14,7 @@ public class SimpleBoundariesControllerSingleZoneLongSeriesTest extends Controll
         source = new TestListenerCapturer();
         timer = new TestTimeProvider();
         // average of last five 5
-        SimpleBoundariesController controller = new SimpleBoundariesController(source, executor, 5, 7, timer);
+        FennecSimpleBoundariesController controller = new FennecSimpleBoundariesController(source, executor, 5, 7, timer);
         controller.start();
         source.listener.onZoneChangeEvent(new ZoneEvent(nextId(), 0, "zoneId", Sets.newHashSet(
                 new Device("sensorDeviceId", DeviceType.TEMPERATURE_SENSOR),

@@ -8,14 +8,14 @@ import org.slf4j.LoggerFactory;
 /**
  * Mqtt events source
  */
-public class TestSineEventSource implements IEventSource, AutoCloseable {
+public class FennecTestSineControllerEventSource implements IFennecControllerEventSource, AutoCloseable {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private long id = 0;
-    private IEventListener listener;
+    private IFennectControllerEventListener listener;
     private Thread t;
 
     @Override
-    public void subscribe(IEventListener listener) {
+    public void subscribe(IFennectControllerEventListener listener) {
         this.listener = listener;
         // todo in order to init system, we need to load info from database first
         // * read zones and config from mongo
@@ -62,7 +62,7 @@ public class TestSineEventSource implements IEventSource, AutoCloseable {
     }
 
     @Override
-    public void unsubscribe(IEventListener listener) {
+    public void unsubscribe(IFennectControllerEventListener listener) {
         this.listener = null;
         t.interrupt();
     }

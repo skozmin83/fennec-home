@@ -10,7 +10,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-public class MqttInterceptor extends AbstractInterceptHandler {
+@Deprecated
+public class FennecMqttInterceptor extends AbstractInterceptHandler {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final List<IMessageListener> listeners = new ArrayList<>();
     @Override
@@ -28,11 +29,10 @@ public class MqttInterceptor extends AbstractInterceptHandler {
                 try {
                     listeners.get(i).onMessage(topicName, currentTime, json);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.error("Exception during message publishing {}.", json, e);
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
             logger.error("Unable to convert message to json {}.", json, e);
         }
     }

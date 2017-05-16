@@ -1,7 +1,6 @@
-package com.fennechome.web;
+package com.fennechome.common;
 
-import com.fennechome.common.FennecException;
-import com.fennechome.common.IMqttClientFactory;
+import org.bson.Document;
 import org.eclipse.paho.client.mqttv3.IMqttClient;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -10,24 +9,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * mqtt impl
  */
-public class MqttUiEventSource implements IUiEventSource {
+public class FennecMqttEventSource implements IFennecEventSource {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final Map<String, TopicListener> listeners = new HashMap<>();
     private final IMqttClientFactory mqttClientFactory;
 
-    public MqttUiEventSource(IMqttClientFactory mqttClientFactory) {
+    public FennecMqttEventSource(IMqttClientFactory mqttClientFactory) {
         this.mqttClientFactory = mqttClientFactory;
     }
 
     @Override
-    public void subscribe(String topic, IUiEventListener l) {
+    public void subscribe(String topic, Listener l) {
         TopicListener value = listeners.computeIfAbsent(topic, k -> {
             IMqttClient mqttClient = mqttClientFactory.getMqttClient();
             TopicListener listener = new TopicListener();
@@ -51,7 +49,7 @@ public class MqttUiEventSource implements IUiEventSource {
     }
 
     @Override
-    public void unsubscribe(String topic, IUiEventListener l) {
+    public void unsubscribe(String topic, Listener l) {
         // don't bother having reverse map, just walk over it, it's small and happens rarely
         for (TopicListener topicListeners : listeners.values()) {
             topicListeners.remove(l);
@@ -59,11 +57,12 @@ public class MqttUiEventSource implements IUiEventSource {
         logger.info("Unsubscribed from {}, listeners {} listeners state {} ", topic, listeners.size(), listeners);
     }
 
-    static class TopicListener extends HashSet<IUiEventListener> implements Set<IUiEventListener>, IMqttMessageListener {
+    static class TopicListener extends LinkedList<Listener> implements IMqttMessageListener {
         @Override
         public void messageArrived(String topic, MqttMessage message) throws Exception {
-            for (IUiEventListener listener : this) {
-                listener.onEvent(topic, new String(message.getPayload()));
+            Document json = Document.parse(new String(message.getPayload()));
+            for (int i = 0; i < size(); i++) {
+                get(i).onEvent(topic, json);
             }
         }
     }

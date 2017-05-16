@@ -1,15 +1,15 @@
 package com.fennechome.controller;
 
-class TestListenerCapturer implements IEventSource {
-    IEventListener listener;
+class TestListenerCapturer implements IFennecControllerEventSource {
+    IFennectControllerEventListener listener;
 
     @Override
-    public void subscribe(IEventListener listener) {
+    public void subscribe(IFennectControllerEventListener listener) {
         this.listener = listener;
     }
 
     @Override
-    public void unsubscribe(IEventListener listener) {
+    public void unsubscribe(IFennectControllerEventListener listener) {
         this.listener = null;
     }
 }

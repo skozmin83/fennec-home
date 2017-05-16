@@ -14,7 +14,7 @@ public class MongoSyncStorage implements AutoCloseable {
     public MongoSyncStorage(Configuration config) {
         mongoClient = new MongoClient(new MongoClientURI(config.getString("fennec.mongo.connection-string")));
         MongoDatabase db = mongoClient.getDatabase(config.getString("fennec.mongo.database-name"));
-        collection = db.getCollection(config.getString("fennec.mongo.collection"));
+        collection = db.getCollection(config.getString("fennec.mongo.sensor.temperature.collection"));
     }
 
     public void store(Document deviceInfo, String topicName) {

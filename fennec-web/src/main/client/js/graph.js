@@ -18,8 +18,8 @@ class DataGraph {
         this.seriesDataArray = [];
         this.thermostatDataHolder = [];
         this.parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
-        this.defaultDataRange = 1000 * 60 * 60 * 24;
-        // this.defaultDataRange = 1000 * 60;
+        // this.defaultDataRange = 1000 * 60 * 60 * 24;
+        this.defaultDataRange = 1000 * 60 * 3;
     }
 
     load(dataLoader) {
@@ -60,7 +60,6 @@ class DataGraph {
             let minTime = Date.now() - this.defaultDataRange;
             this.dropOlderSeriesPoints(this.seriesDataArray, minTime);
 
-            // add new
             dataHolder.seriesValues.push(incrementalUpdate);
 
             // adjust domain, todo optimize to a single traverse, take into account current scale/zoom factor
@@ -75,9 +74,7 @@ class DataGraph {
     subscribeToDynamicZoneData(dynamicZoneDataLoader) {
         dynamicZoneDataLoader.load(incrementalZoneUpdate => {
             this.enrichZoneDatum(incrementalZoneUpdate);
-            let minTime = Date.now() - this.defaultDataRange;
-            this.dropOlderTimePoints(this.thermostatDataHolder, minTime);
-            // add new
+            this.dropOlderTimePoints(this.thermostatDataHolder, Date.now() - this.defaultDataRange);
             this.thermostatDataHolder.push(incrementalZoneUpdate);
             this.redraw();
         });
@@ -174,8 +171,12 @@ class DynamicWebSocketDataLoader {
         this.bacon = require('baconjs').Bacon;
         let updateStream = this.bacon.fromEventTarget(this.ws, "message")
             .map(event => {
-                //console.log(event.data);
-                return JSON.parse(event.data);
+                try { //console.log(event.data);
+                    return JSON.parse(event.data);
+                } catch (e) {
+                    console.log(event.data);
+                    console.log(e);
+                }
             });
         let sensorsStream = updateStream.filter(function (update) {
             return update.etype === "TEMPERATURE_SENSOR";
@@ -319,6 +320,11 @@ class DataVisualizer {
     resetDomain(xMin, xMax, yMin, yMax, seriesDataArray, thermostatDataHolder) {
         this.seriesDataArray = seriesDataArray;
         this.thermostatDataHolder = thermostatDataHolder;
+        xMax = typeof xMax === 'undefined' ? new Date() : xMax;
+        xMin = typeof xMin === 'undefined' ? new Date() : xMin;
+        yMin = typeof yMin === 'undefined' ? new Date() : yMin;
+        yMax = typeof yMax === 'undefined' ? new Date() : yMax;
+
         this.xPrevMin = this.xMin;
         this.xPrevMax = this.xMax;
         this.xMin = xMin;
@@ -357,7 +363,7 @@ class DataVisualizer {
                 state: lastElem.state,
                 etype: lastElem.etype,
                 // timeMillis: lastElem.timeMillis + 20 * 1000, // todo get max from the last X position, don't add offsets
-                time: this.xMax
+                time: typeof this.xMax === 'undefined' ? new Date() : this.xMax
             });
             this.g
                 .selectAll("#segment-" + domSegmentId)

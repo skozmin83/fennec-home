@@ -1,6 +1,7 @@
 package com.fennechome.web;
 
 import com.fennechome.common.FennecException;
+import com.fennechome.common.FennecMqttEventSource;
 import com.fennechome.common.IMqttClientFactory;
 import com.fennechome.common.MongoSyncStorage;
 import org.apache.commons.configuration2.Configuration;
@@ -50,7 +51,7 @@ public class FennecWebServer implements AutoCloseable {
 
         // Add a websocket to a specific path spec
         try {
-            MqttUiEventSource source = new MqttUiEventSource(mqttClientFactory);
+            FennecMqttEventSource source = new FennecMqttEventSource(mqttClientFactory);
             WebSocketCreator sensorEventCreator = (req, resp) -> new FennecSensorEventWebSocket(configuration, source);
             WebSocketServlet sensorWs = new FennecWebSocketServlet(sensorEventCreator);
             context.addServlet(new ServletHolder("ws-temperature", sensorWs), "/temperature.ws");

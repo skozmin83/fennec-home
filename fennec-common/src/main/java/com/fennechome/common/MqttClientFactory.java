@@ -1,6 +1,5 @@
 package com.fennechome.common;
 
-import org.apache.commons.configuration2.Configuration;
 import org.eclipse.paho.client.mqttv3.IMqttClient;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -17,10 +16,10 @@ public class MqttClientFactory implements IMqttClientFactory {
     private final MemoryPersistence persistence = new MemoryPersistence();
     private IMqttClient mqttClient;
 
-    public MqttClientFactory(Configuration configuration) {
-        broker = configuration.getString("fennec.mqtt.broker");
-        clientId = configuration.getString("fennec.mqtt.user");
-        pwd = configuration.getString("fennec.mqtt.pwd");
+    public MqttClientFactory(String broker, String clientId, String pwd) {
+        this.broker = broker;
+        this.clientId = clientId;
+        this.pwd = pwd;
     }
 
     @Override
@@ -46,5 +45,12 @@ public class MqttClientFactory implements IMqttClientFactory {
         logger.info("Connecting to broker: " + broker);
         mqttClient.connect(connOpts);
         return mqttClient;
+    }
+
+    @Override
+    public synchronized void close() throws Exception {
+        if (mqttClient != null) {
+            mqttClient.disconnectForcibly();
+        }
     }
 }

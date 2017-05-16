@@ -1,31 +1,23 @@
 package com.fennechome.server;
 
-import com.fennechome.common.FennecException;
+import com.fennechome.common.IFennecEventSource;
 import com.fennechome.common.MongoAsyncStorage;
-import com.fennechome.mqtt.IMessageListener;
 import org.bson.Document;
 
 /**
  * Saves all the information published by devices to a file
  */
-public class SensorInfoMongoSaver implements AutoCloseable, IMessageListener {
+public class SensorInfoMongoSaver implements IFennecEventSource.Listener {
     private final MongoAsyncStorage st;
+    private final String            store;
 
-    public SensorInfoMongoSaver(MongoAsyncStorage st) {
+    public SensorInfoMongoSaver(MongoAsyncStorage st, String store) {
         this.st = st;
+        this.store = store;
     }
 
     @Override
-    public void onMessage(String topicName, long currentTime, Document json) {
-        st.store(json, topicName);
-    }
-
-    @Override
-    public void close() {
-        try {
-            st.close();
-        } catch (Exception e) {
-            throw new FennecException("Unable to close Mongo storage.", e);
-        }
+    public void onEvent(String topic, Document msg) {
+        st.store(store, msg);
     }
 }

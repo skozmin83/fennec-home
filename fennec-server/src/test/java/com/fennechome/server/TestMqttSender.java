@@ -12,7 +12,11 @@ import java.io.File;
 public class TestMqttSender {
     public static void main(String[] args) {
         Configuration config = PropertiesUtil.getConfig(new File("fennechome-mqtt-server-test.properties"));
-        IMqttClientFactory mqttClientFactory = new MqttClientFactory(config);
+        MqttClientFactory mqttClientFactory = new MqttClientFactory(
+                config.getString("fennec.mqtt.broker"),
+                config.getString("fennec.mqtt.user"),
+                config.getString("fennec.mqtt.pwd")
+        );
         IMqttClient mqttClient = mqttClientFactory.getMqttClient();
         String topicBase = config.getString("fennec.mqtt.devices-base-topic");
 

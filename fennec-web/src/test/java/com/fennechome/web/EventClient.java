@@ -4,6 +4,7 @@ import java.io.File;
 import java.net.URI;
 import java.util.concurrent.Future;
 
+import com.fennechome.common.FennecMqttEventSource;
 import com.fennechome.common.IMqttClientFactory;
 import com.fennechome.common.MqttClientFactory;
 import com.fennechome.common.PropertiesUtil;
@@ -17,13 +18,17 @@ public class EventClient {
 
         WebSocketClient client = new WebSocketClient();
         Configuration config = PropertiesUtil.getConfig(new File("fennechome-ui-server-local.properties"));
-        IMqttClientFactory mqttClientFactory = new MqttClientFactory(config);
+        MqttClientFactory mqttClientFactory = new MqttClientFactory(
+                config.getString("fennec.mqtt.ui.broker"),
+                config.getString("fennec.mqtt.ui.user"),
+                config.getString("fennec.mqtt.ui.pwd")
+        );
         try {
             try {
                 client.start();
                 // The socket that receives events
                 FennecSensorEventWebSocket socket =
-                        new FennecSensorEventWebSocket(config, new MqttUiEventSource(mqttClientFactory));
+                        new FennecSensorEventWebSocket(config, new FennecMqttEventSource(mqttClientFactory));
                 // Attempt Connect
                 Future<Session> fut = client.connect(socket, uri);
                 // Wait for Connect
