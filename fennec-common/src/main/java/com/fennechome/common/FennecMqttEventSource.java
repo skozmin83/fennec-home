@@ -1,5 +1,7 @@
 package com.fennechome.common;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bson.Document;
 import org.eclipse.paho.client.mqttv3.IMqttClient;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
@@ -58,11 +60,16 @@ public class FennecMqttEventSource implements IFennecEventSource {
     }
 
     static class TopicListener extends LinkedList<Listener> implements IMqttMessageListener {
+        private final Logger logger = LoggerFactory.getLogger(getClass());
         @Override
         public void messageArrived(String topic, MqttMessage message) throws Exception {
-            Document json = Document.parse(new String(message.getPayload()));
             for (int i = 0; i < size(); i++) {
-                get(i).onEvent(topic, json);
+                Listener listener = get(i);
+                try {
+                    listener.onEvent(topic, message.getPayload(), System.currentTimeMillis());
+                } catch (Throwable t) {
+                    logger.error("Error during message handling by {}. ", listener, t);
+                }
             }
         }
     }

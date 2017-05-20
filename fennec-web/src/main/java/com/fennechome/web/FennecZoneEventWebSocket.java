@@ -1,10 +1,11 @@
 package com.fennechome.web;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fennechome.common.FennecException;
 import com.fennechome.common.IFennecEventSource;
-import com.fennechome.common.JsonSerializer;
+import com.fennechome.common.BsonSerializer;
 import org.apache.commons.configuration2.Configuration;
-import org.bson.Document;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.common.io.FutureWriteCallback;
@@ -32,7 +33,7 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
         super.onWebSocketConnect(sess);
         logger.info("Zone socket connected [" + this + "]: " + sess);
         Map<String, List<String>> params = sess.getUpgradeRequest().getParameterMap();
-        List<String> thermostatParams = params.get("thermostat");
+        List<String> thermostatParams = params.get("id");
         if (thermostatParams != null && !thermostatParams.isEmpty()) {
             String thermostat = thermostatParams.get(0);
             String thermostatTopic = uiBaseTopic + thermostat;
@@ -69,7 +70,7 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
     }
 
     private class MqttThermostatDirectivesListener implements IFennecEventSource.Listener {
-        private final JsonSerializer serializer = new JsonSerializer();
+        private final ObjectMapper mapper = new ObjectMapper();
         private String topic;
 
         public void setTopic(String topic) {
@@ -77,10 +78,11 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
         }
 
         @Override
-        public void onEvent(String topic, Document json) {
+        public void onEvent(String topic, byte[] msg, long ts) {
             try {
+                ObjectNode json = (ObjectNode) mapper.readTree(msg);
                 logger.info("Publish:" + topic + ", message: " + json);
-                getRemote().sendString(serializer.serialize(json), callback);
+                getRemote().sendString(mapper.writeValueAsString(json), callback);
             } catch (Exception e) {
                 logger.error("Unable to publish message. ", e);
                 throw new FennecException(e);

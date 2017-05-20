@@ -40,13 +40,14 @@ public class FennecMqttControllerEventSource
     }
 
     @Override
-    public void onEvent(String topic, Document msg) {
+    public void onEvent(String topic, byte[] msg, long ts) {
         try {
+            Document json = Document.parse(new String(msg));
             String deviceId = topic.substring(devicePrefix.length(), topic.length());
             String zone = deviceToZoneMapping.get(deviceId);
             if (zone != null) {
-                float temperature = msg.getDouble("t").floatValue();
-                float humidity = msg.getDouble("h").floatValue();
+                float temperature = json.getDouble("t").floatValue();
+                float humidity = json.getDouble("h").floatValue();
                 listener.onTemperatureEvent(new TemperatureEvent(nextId(),
                                                                  System.currentTimeMillis(),
                                                                  zone,

@@ -190,7 +190,7 @@ public class Main {
         // Add Application Servlets
         sch.addServlet(exampleJspFileMappedServletHolder(), "/test/foo/");
         sch.addServlet(defaultServletHolder(baseUri), "/");
-        sch.addServlet(DeviceTemperatureCsvServlet.class, "/temperature.csv");
+        sch.addServlet(FennecTemperatureCsvServlet.class, "/temperature.csv");
         return sch;
     }
 

@@ -5,21 +5,21 @@ import com.fennechome.common.IFennecEventSource;
 import com.fennechome.common.MqttClientFactory;
 import com.fennechome.common.PropertiesUtil;
 import com.fennechome.controller.IFennecComfortController;
-import com.fennechome.controller.IFennecControllerEventSource;
 import com.fennechome.controller.FennecSimpleBoundariesController;
 import com.fennechome.mqtt.FennecMqttControllerEventSource;
 import com.fennechome.mqtt.MqttDirectionExecutor;
 import com.fennechome.server.FennecMqttServer;
 import com.fennechome.common.MongoAsyncStorage;
 import com.fennechome.server.SensorInfoMongoSaver;
-import com.google.common.collect.Lists;
 import org.apache.commons.configuration2.Configuration;
+import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Date;
 
 public class FennecMqttEntryPoint {
     private static final Logger logger = LoggerFactory.getLogger(FennecMqttEntryPoint.class);
@@ -49,7 +49,7 @@ public class FennecMqttEntryPoint {
             FennecMqttServer server = new FennecMqttServer(Collections.emptyList(), config);
             MqttDirectionExecutor mqttDirectionExecutor = new MqttDirectionExecutor(config, server);
             IFennecComfortController controller =
-                    initComfortController(config, controllerEventSource, mqttDirectionExecutor);
+                    new FennecSimpleBoundariesController(controllerEventSource, mqttDirectionExecutor, 5, 100);
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
@@ -64,10 +64,28 @@ public class FennecMqttEntryPoint {
             server.start();
             controller.start();
 
+            // subscribe to mqtt
             IFennecEventSource mqttEventSource = new FennecMqttEventSource(mqttClientFactory);
-            mqttEventSource.subscribe(config.getString("fennec.mqtt.devices-base-topic") + "#", controllerEventSource);
-            mqttEventSource.subscribe(config.getString("fennec.mqtt.devices-base-topic") + "#", temperatureMongoSaver);
-            mqttEventSource.subscribe(config.getString("fennec.mqtt.ui-base-topic") + "#", zoneEventsMongoSaver);
+            String deviceTopicBase = config.getString("fennec.mqtt.devices-base-topic");
+            mqttEventSource.subscribe(deviceTopicBase + "#", controllerEventSource);
+            mqttEventSource.subscribe(deviceTopicBase + "#",
+                                      (topic, msg, ts) -> {
+                                          Document json = Document.parse(new String(msg));
+                                          json = json.append("id",
+                                                           topic.substring(deviceTopicBase.length(), topic.length()));
+                                          json = json.append("ts", ts);
+                                          json = json.append("time", new Date(ts));
+                                          storage.store(tempCollection, json);
+                                      });
+            String usTopicBase = config.getString("fennec.mqtt.ui-base-topic");
+            mqttEventSource.subscribe(usTopicBase + "#",
+                                      (topic, msg, ts) -> {
+                                          Document json = Document.parse(new String(msg));
+                                          json = json.append("id",
+                                                           topic.substring(usTopicBase.length(), topic.length()));
+                                          json.put("time", new Date(Long.parseLong(json.getString("ts"))));
+                                          storage.store(zoneEventsCollection, json);
+                                      });
 
             logger.info("Broker started. ");
         } catch (Throwable t) {
@@ -76,9 +94,4 @@ public class FennecMqttEntryPoint {
         }
     }
 
-    private static IFennecComfortController initComfortController(Configuration config,
-                                                                  IFennecControllerEventSource eventSource,
-                                                                  MqttDirectionExecutor mqttDirectionExecutor) {
-        return new FennecSimpleBoundariesController(eventSource, mqttDirectionExecutor, 5, 100);
-    }
 }

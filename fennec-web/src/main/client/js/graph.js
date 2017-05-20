@@ -13,37 +13,51 @@ module.exports = {
 };
 
 class DataGraph {
+    // dataView;
+    // seriesDataArray;
+    // thermostatDataHolder;
+    // parseTime;
+    // defaultDataRange;
+
     constructor(dataView) {
         this.dataView = dataView;
         this.seriesDataArray = [];
         this.thermostatDataHolder = [];
+        this.thermostatDataHolder.values = [];
         this.parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S");
         // this.defaultDataRange = 1000 * 60 * 60 * 24;
         this.defaultDataRange = 1000 * 60 * 3;
     }
 
-    load(dataLoader) {
+    loadSegments(dataLoader) {
+        // series by series draw data
+        dataLoader.load(segmentDataHolder => {
+            this.thermostatDataHolder = segmentDataHolder;
+            // todo make each segment to have an id (e.g. for cooling and heating and mixing)
+            segmentDataHolder.values.forEach(d => this.enrichZoneDatum(d));
+            // this.dataView.drawSegments(segmentDataHolder.values);
+            this.dataView.resetDomain(this.xMin, this.xMax, this.yMin, this.yMax, this.seriesDataArray, this.thermostatDataHolder);
+            this.redraw();
+        });
+    }
+
+    loadSeries(dataLoader) {
         // series by series draw data
         dataLoader.load(dataHolder => {
             this.seriesDataArray[dataHolder.id] = dataHolder;
-            dataHolder.seriesValues.forEach(d => this.enrichSensorDatum(d));
+            dataHolder.values.forEach(d => this.enrichSensorDatum(d));
 
             Object.keys(this.seriesDataArray).forEach(key => {
                 // adjust domain, todo optimize to a single traverse
-                this.xMin = findMin(d3.min(dataHolder.seriesValues, d => d.time), this.xMin);
-                this.xMax = findMax(d3.max(dataHolder.seriesValues, d => d.time), this.xMax);
-                this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
-                this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
+                this.xMin = findMin(d3.min(dataHolder.values, d => d.time), this.xMin);
+                this.xMax = findMax(d3.max(dataHolder.values, d => d.time), this.xMax);
+                this.yMin = findMin(d3.min(dataHolder.values, d => d.temperature), this.yMin);
+                this.yMax = findMax(d3.max(dataHolder.values, d => d.temperature), this.yMax);
             });
             this.dataView.resetDomain(this.xMin, this.xMax, this.yMin, this.yMax, this.seriesDataArray, this.thermostatDataHolder);
 
             // redraw
-            Object.keys(this.seriesDataArray).forEach(key => {
-                let dataHolder = this.seriesDataArray[key];
-                this.dataView.drawSeries(dataHolder);
-            });
-
-            this.dataView.refreshMouseMapping(this.seriesDataArray);
+            this.redraw();
         });
     }
 
@@ -60,11 +74,11 @@ class DataGraph {
             let minTime = Date.now() - this.defaultDataRange;
             this.dropOlderSeriesPoints(this.seriesDataArray, minTime);
 
-            dataHolder.seriesValues.push(incrementalUpdate);
+            dataHolder.values.push(incrementalUpdate);
 
             // adjust domain, todo optimize to a single traverse, take into account current scale/zoom factor
-            this.yMin = findMin(d3.min(dataHolder.seriesValues, d => d.temperature), this.yMin);
-            this.yMax = findMax(d3.max(dataHolder.seriesValues, d => d.temperature), this.yMax);
+            this.yMin = findMin(d3.min(dataHolder.values, d => d.temperature), this.yMin);
+            this.yMax = findMax(d3.max(dataHolder.values, d => d.temperature), this.yMax);
             this.dataView.resetDomain(new Date(minTime), new Date(), this.yMin, this.yMax, this.seriesDataArray, this.thermostatDataHolder);
 
             this.redraw();
@@ -74,8 +88,8 @@ class DataGraph {
     subscribeToDynamicZoneData(dynamicZoneDataLoader) {
         dynamicZoneDataLoader.load(incrementalZoneUpdate => {
             this.enrichZoneDatum(incrementalZoneUpdate);
-            this.dropOlderTimePoints(this.thermostatDataHolder, Date.now() - this.defaultDataRange);
-            this.thermostatDataHolder.push(incrementalZoneUpdate);
+            DataGraph.dropOlderTimePoints(this.thermostatDataHolder.values, Date.now() - this.defaultDataRange);
+            this.thermostatDataHolder.values.push(incrementalZoneUpdate);
             this.redraw();
         });
     }
@@ -92,13 +106,13 @@ class DataGraph {
     }
 
     dropOlderSeriesPoints(seriesDataArray, minTime) {
-        Object.keys(seriesDataArray).forEach(key => this.dropOlderTimePoints(seriesDataArray[key].seriesValues, minTime));
+        Object.keys(seriesDataArray).forEach(key => DataGraph.dropOlderTimePoints(seriesDataArray[key].values, minTime));
     }
 
-    dropOlderTimePoints(timedArray, minTime) {
-        while (timedArray.length > 0) {
-            if (timedArray[0].timeMillis < minTime
-                && timedArray[1] && timedArray[1].timeMillis < minTime) { // leave 1 point so our graph starts at the 0. todo add clipping
+    static dropOlderTimePoints(timedArray, minTime) {
+        while (timedArray && timedArray.length > 0) {
+            if (timedArray[0].ts < minTime
+                && timedArray[1] && timedArray[1].ts < minTime) { // leave 1 point so our graph starts at the 0. todo add clipping
                 let dropped = timedArray.shift();
                 // console.log("Drop: " + JSON.stringify(dropped));
             } else {
@@ -109,24 +123,25 @@ class DataGraph {
 
     enrichSensorDatum(d) {
         // format the data
-        d.time = this.parseTime(d.ts); // todo convert to epoch
-        d.timeMillis = d.time.getTime();
+        d.time = new Date(+d.ts);
+        // d.timeMillis = d.time.getTime();
         d.temperature = +d.t;
         return d;
     }
 
     enrichZoneDatum(d) {
         // format the data
-        d.time = this.parseTime(d.ts);
-        d.timeMillis = d.time.getTime();
+        // d.time = this.parseTime(d.ts);
+        d.time = new Date(+d.ts);
+        // d.timeMillis = +d.ts;
         return d;
     }
 }
 
 class DataHolder {
-    constructor(id, seriesValues) {
+    constructor(id, values) {
         this.id = id;
-        this.seriesValues = seriesValues;
+        this.values = values;
     }
 }
 
@@ -135,10 +150,10 @@ class DataLoader {
         this.url = url;
     }
 
-    load(fullSeriesCallback) {
+    load(callback) {
         d3.csv(this.url.url, (error, data) => {
             if (error) throw error;
-            fullSeriesCallback(new DataHolder(this.url.id, data))
+            callback(new DataHolder(this.url.id, data))
         });
     }
 }
@@ -171,7 +186,8 @@ class DynamicWebSocketDataLoader {
         this.bacon = require('baconjs').Bacon;
         let updateStream = this.bacon.fromEventTarget(this.ws, "message")
             .map(event => {
-                try { //console.log(event.data);
+                try {
+                    //console.log(event.data);
                     return JSON.parse(event.data);
                 } catch (e) {
                     console.log(event.data);
@@ -308,12 +324,12 @@ class DataVisualizer {
             this.g
                 .selectAll("#path-" + domSeriesId)
                 .data([dataHolder], d => d.id)
-                .attr("d", d => this.line(d.seriesValues))
+                .attr("d", d => this.line(d.values))
                 .attr("transform", null)
             ;
         });
         this.drawSegments(this.thermostatDataHolder);
-        // d => this.line(d.seriesValues)
+        // d => this.line(d.values)
         // this.g.select(".axis--x").call(xAxis.scale(xt));
     }
 
@@ -357,9 +373,10 @@ class DataVisualizer {
         ;
         // ==========  update section
         // update line itself
-        if (thermostatDataHolder.length > 0) {
-            let lastElem = thermostatDataHolder[thermostatDataHolder.length - 1];
-            thermostatDataHolder.push({
+        let values = thermostatDataHolder.values;
+        if (values && values.length > 0) {
+            let lastElem = values[values.length - 1];
+            values.push({
                 state: lastElem.state,
                 etype: lastElem.etype,
                 // timeMillis: lastElem.timeMillis + 20 * 1000, // todo get max from the last X position, don't add offsets
@@ -367,12 +384,12 @@ class DataVisualizer {
             });
             this.g
                 .selectAll("#segment-" + domSegmentId)
-                .data([thermostatDataHolder])
+                .data([values])
                 .attr("d", d => this.area(d))
                 .attr("transform", null)
                 .attr("class", "segment")
             ;
-            thermostatDataHolder.pop();// todo make it a field to not create new every time
+            values.pop();// todo make it a field to not create new every time
         }
     }
 
@@ -452,7 +469,7 @@ class DataVisualizer {
         this.g
             .selectAll("#path-" + domSeriesId)
             .data([dataHolder], d => d.id)
-            .attr("d", d => this.line(d.seriesValues))
+            .attr("d", d => this.line(d.values))
             .attr("transform", null)
         ;
         // this.pathes.transition()
@@ -468,14 +485,14 @@ class DataVisualizer {
         this.yAxis
             .call(d3.axisLeft(this.y));
 
-        if (dataHolder.seriesValues.length === 0) {
+        if (dataHolder.values.length === 0) {
             return;
         }
         this.g
             .selectAll("#text-" + domSeriesId)
             .data([{
                 id: dataHolder.id,
-                value: dataHolder.seriesValues[dataHolder.seriesValues.length - 1]
+                value: dataHolder.values[dataHolder.values.length - 1]
             }])
             .attr("fill", d => this.z(d.id))
             .text(d => d.id)
@@ -531,7 +548,7 @@ class DataVisualizer {
         Object.keys(seriesDataArray).forEach(key => {
             // console.log("key:" + JSON.stringify(key) + "data:" + JSON.stringify(seriesDataArray[key]));
             let dataHolder = seriesDataArray[key];
-            let seriesValues = dataHolder.seriesValues;
+            let seriesValues = dataHolder.values;
             loopBySeriesValues:for (let j = 0; j < seriesValues.length; j++) {
                 let dot = seriesValues[j];
                 let xValue = round(this.x(dot.time), 0);

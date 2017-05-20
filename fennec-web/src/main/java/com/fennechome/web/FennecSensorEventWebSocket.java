@@ -1,10 +1,11 @@
 package com.fennechome.web;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fennechome.common.FennecException;
 import com.fennechome.common.IFennecEventSource;
-import com.fennechome.common.JsonSerializer;
+import com.fennechome.common.BsonSerializer;
 import org.apache.commons.configuration2.Configuration;
-import org.bson.Document;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.common.io.FutureWriteCallback;
@@ -13,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
@@ -43,7 +43,7 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
 
         Map<String, List<String>> params = sess.getUpgradeRequest().getParameterMap();
         List<String> sidParams = params.get("sid");
-        List<String> deviceParams = params.get("topic");
+        List<String> deviceParams = params.get("id");
         if (sidParams.isEmpty() || deviceParams.isEmpty()) {
             throw new IllegalArgumentException("[sid] and [topic] params, must be present. ");
         }
@@ -84,7 +84,7 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
     }
 
     private class MqttTempSensorListener implements IFennecEventSource.Listener {
-        private final JsonSerializer serializer = new JsonSerializer();
+        private final ObjectMapper   mapper     = new ObjectMapper();
         private String topic;
 
         public void setTopic(String topic) {
@@ -92,12 +92,13 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
         }
 
         @Override
-        public void onEvent(String topic, Document json) {
+        public void onEvent(String topic, byte[] msg, long ts) {
             try {
-                json.append("ts", df.format(new Date()));
-                json.append("etype", "TEMPERATURE_SENSOR");
+                ObjectNode json = (ObjectNode) mapper.readTree(msg);
+                json.put("ts", System.currentTimeMillis());
+                json.put("etype", "TEMPERATURE_SENSOR");
                 logger.info("Publish:" + topic + ", message: " + json);
-                getRemote().sendString(serializer.serialize(json), callback);
+                getRemote().sendString(mapper.writeValueAsString(json), callback);
             } catch (Exception e) {
                 logger.error("Unable to publish message. ", e);
                 throw new FennecException(e);

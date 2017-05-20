@@ -17,7 +17,7 @@ public class SensorInfoMongoSaver implements IFennecEventSource.Listener {
     }
 
     @Override
-    public void onEvent(String topic, Document msg) {
-        st.store(store, msg);
+    public void onEvent(String topic, byte[] msg, long ts) {
+        st.store(store, Document.parse(new String(msg)));
     }
 }

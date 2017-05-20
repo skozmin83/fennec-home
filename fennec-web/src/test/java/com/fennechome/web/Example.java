@@ -21,9 +21,9 @@ import static com.mongodb.client.model.Filters.or;
 
 public class Example {
     public static void main(String[] args) {
-        MongoClient mongoClient = new MongoClient("raspberrypi", 27017);
-        MongoDatabase db = mongoClient.getDatabase("mydb");
-        MongoCollection<Document> collection = db.getCollection("mycoll");
+        MongoClient mongoClient = new MongoClient("localhost", 27017);
+        MongoDatabase db = mongoClient.getDatabase("testdb");
+        MongoCollection<Document> collection = db.getCollection("zone-events");
 
         TimeZone tz = TimeZone.getTimeZone("America/New_York");
 //            DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'"); // Quoted "Z" to indicate UTC, no timezone offset
@@ -38,16 +38,19 @@ public class Example {
 //                .find()
 //                .find(and(Filters.regex("sid", "dht22-top"), Filters.regex("topic", "A0:20:A6:16:A6:34")))
                 .find(and(
-                        Filters.regex("sid", "(dht22-top|dht22-bottom)")
-                        ,Filters.regex("topic", "A0:20:A6:16:A7:0A")
-//                      ,  Filters.gt("ts", from)
+//                        Filters.regex("sid", "(dht22-top|dht22-bottom)")
+                        Filters.regex("id", "5C:CF:7F:34:37:E0")
+//                        ,Filters.regex("id", "5C:CF:7F:34:37:E0")
+                      ,  Filters.gt("time", from)
                 )).sort(Sorts.ascending("ts", "sid"))
                 .forEach((Block<Document>) document -> {
                     counter[0]++;
                     sb.setLength(0);
-                    Date ts = (Date) document.get("ts");
+                    Date ts = (Date) document.get("time");
                     String sid = (String) document.get("sid");
-                    if (ts != null && sid != null) {
+                    if (ts != null
+//                            && sid != null
+                            ) {
                         String ts6081 = df.format(ts);
                         sb.append(sid).append(",").append(document.get("t")).append(",").append(ts6081).append("\n");
                         System.out.print(sb);

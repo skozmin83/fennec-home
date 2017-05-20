@@ -7,6 +7,8 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
@@ -23,15 +25,15 @@ import java.util.*;
 
 import static com.mongodb.client.model.Filters.and;
 
-public class DeviceTemperatureCsvServlet extends HttpServlet {
-    /**
-     * todo threadlocal
-     */
+public class FennecTemperatureCsvServlet extends HttpServlet {
+    private final Logger                     logger             = LoggerFactory.getLogger(getClass());
     private final ThreadLocal<LineGenerator> lineGeneratorLocal = ThreadLocal.withInitial(LineGenerator::new);
     private final MongoSyncStorage storage;
+    private final String           collection;
 
-    public DeviceTemperatureCsvServlet(MongoSyncStorage storage) {
+    public FennecTemperatureCsvServlet(MongoSyncStorage storage, String collection) {
         this.storage = storage;
+        this.collection = collection;
     }
 
     @Override
@@ -48,10 +50,11 @@ public class DeviceTemperatureCsvServlet extends HttpServlet {
             lineGenerator.setOutputStream(outputStream);
 
             Date from = Date.from(Instant.now().minus(1, ChronoUnit.DAYS));
-            filters.add(Filters.gt("ts", from));
-            storage.load(collection -> collection
+            filters.add(Filters.gt("time", from));
+            logger.info("Request: " + filters);
+            storage.load(collection, collection -> collection
                     .find(and(filters))
-                    .sort(Sorts.ascending("ts", "sid"))
+                    .sort(Sorts.ascending("time", "sid"))
                     .forEach(lineGenerator));
             outputStream.flush();
         } catch (Exception e) {
@@ -61,8 +64,8 @@ public class DeviceTemperatureCsvServlet extends HttpServlet {
 
     private static class LineGenerator implements Block<Document> {
         private final StringBuilder sb = new StringBuilder();
-        private final DateFormat df;
-        private OutputStream outputStream;
+        private final DateFormat   df;
+        private       OutputStream outputStream;
 
         public LineGenerator() {
             TimeZone tz = TimeZone.getTimeZone("America/New_York");
@@ -85,15 +88,15 @@ public class DeviceTemperatureCsvServlet extends HttpServlet {
         public void apply(Document document) {
             try {
                 sb.setLength(0);
-                Date ts = (Date) document.get("ts");
-                String sid = (String) document.get("sid");
-                if (ts != null && sid != null) {
-                    String ts6081 = df.format(ts);
+                long ts = document.getLong("ts");
+                String sid = document.getString("sid");
+                if (sid != null) {
+//                    String ts6081 = df.format(ts);
                     sb.append(sid)
                       .append(",")
                       .append(document.get("t"))
                       .append(",")
-                      .append(ts6081)
+                      .append(ts)
                       .append("\n");
                     outputStream.write(sb.toString().getBytes());
                 }

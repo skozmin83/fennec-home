@@ -55,7 +55,7 @@ public class MqttDirectionExecutor implements IDirectionExecutor {
 
     private String prepareUiMessage(ThermostatState thermostatState, long ts) {
         return "{\"state\":\"" + thermostatState.name()
-                + "\", \"etype\":\"THERMOSTAT\", \"ts\":\"" + df.format(ts) + "\"}";
+                + "\", \"etype\":\"THERMOSTAT\", \"ts\":\"" + ts + "\"}";
     }
 
     private String prepareThermostatMessage(ThermostatState thermostatState) {

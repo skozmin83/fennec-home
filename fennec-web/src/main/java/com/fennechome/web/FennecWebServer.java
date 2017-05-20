@@ -62,8 +62,17 @@ public class FennecWebServer implements AutoCloseable {
         } catch (Exception e) {
             throw new FennecException("Unable to get a connection. ");
         }
-        DeviceTemperatureCsvServlet csvServlet = new DeviceTemperatureCsvServlet(new MongoSyncStorage(configuration));
-        context.addServlet(new ServletHolder("csv-sensors", csvServlet), "/temperature.csv");
+
+        MongoSyncStorage storage = new MongoSyncStorage(configuration);
+        String tempCollection = configuration.getString("fennec.mongo.sensor.temperature.collection");
+        FennecTemperatureCsvServlet
+                temperatureCsvServlet = new FennecTemperatureCsvServlet(storage, tempCollection);
+        context.addServlet(new ServletHolder("csv-sensors", temperatureCsvServlet), "/temperature.csv");
+
+        String zoneEventsCollection = configuration.getString("fennec.mongo.zone-events.collection");
+        FennecZoneCsvServlet
+                thermostatCsvServlet = new FennecZoneCsvServlet(storage, zoneEventsCollection);
+        context.addServlet(new ServletHolder("csv-zone", thermostatCsvServlet), "/zone.csv");
     }
 
     public void start() {
