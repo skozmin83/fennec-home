@@ -38,18 +38,17 @@ public class FennecMqttEntryPoint {
             String tempCollection = config.getString("fennec.mongo.sensor.temperature.collection");
             String zoneEventsCollection = config.getString("fennec.mongo.zone-events.collection");
             MongoAsyncStorage storage = new MongoAsyncStorage(config);
-            SensorInfoMongoSaver temperatureMongoSaver = new SensorInfoMongoSaver(storage, tempCollection);
-            SensorInfoMongoSaver zoneEventsMongoSaver = new SensorInfoMongoSaver(storage, zoneEventsCollection);
 
-            MqttClientFactory mqttClientFactory = new MqttClientFactory(
-                    config.getString("fennec.mqtt.controller.broker"),
-                    config.getString("fennec.mqtt.controller.user"),
-                    config.getString("fennec.mqtt.controller.pwd")
-            );
+            MqttClientFactory mqttClientFactory
+                    = new MqttClientFactory(config.getString("fennec.mqtt.controller.broker"),
+                                            config.getString("fennec.mqtt.controller.user"),
+                                            config.getString("fennec.mqtt.controller.pwd"));
             FennecMqttServer server = new FennecMqttServer(Collections.emptyList(), config);
             MqttDirectionExecutor mqttDirectionExecutor = new MqttDirectionExecutor(config, server);
-            IFennecComfortController controller =
-                    new FennecSimpleBoundariesController(controllerEventSource, mqttDirectionExecutor, 5, 100);
+            IFennecComfortController controller = new FennecSimpleBoundariesController(controllerEventSource,
+                                                                                       mqttDirectionExecutor,
+                                                                                       5,
+                                                                                       100);
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
@@ -68,24 +67,20 @@ public class FennecMqttEntryPoint {
             IFennecEventSource mqttEventSource = new FennecMqttEventSource(mqttClientFactory);
             String deviceTopicBase = config.getString("fennec.mqtt.devices-base-topic");
             mqttEventSource.subscribe(deviceTopicBase + "#", controllerEventSource);
-            mqttEventSource.subscribe(deviceTopicBase + "#",
-                                      (topic, msg, ts) -> {
-                                          Document json = Document.parse(new String(msg));
-                                          json = json.append("id",
-                                                           topic.substring(deviceTopicBase.length(), topic.length()));
-                                          json = json.append("ts", ts);
-                                          json = json.append("time", new Date(ts));
-                                          storage.store(tempCollection, json);
-                                      });
+            mqttEventSource.subscribe(deviceTopicBase + "#", (topic, msg, ts) -> {
+                Document json = Document.parse(new String(msg));
+                json = json.append("id", topic.substring(deviceTopicBase.length(), topic.length()));
+                json = json.append("ts", ts);
+                json = json.append("time", new Date(ts));
+                storage.store(tempCollection, json);
+            });
             String usTopicBase = config.getString("fennec.mqtt.ui-base-topic");
-            mqttEventSource.subscribe(usTopicBase + "#",
-                                      (topic, msg, ts) -> {
-                                          Document json = Document.parse(new String(msg));
-                                          json = json.append("id",
-                                                           topic.substring(usTopicBase.length(), topic.length()));
-                                          json.put("time", new Date(Long.parseLong(json.getString("ts"))));
-                                          storage.store(zoneEventsCollection, json);
-                                      });
+            mqttEventSource.subscribe(usTopicBase + "#", (topic, msg, ts) -> {
+                Document json = Document.parse(new String(msg));
+                json = json.append("id", topic.substring(usTopicBase.length(), topic.length()));
+                json.put("time", new Date(Long.parseLong(json.getString("ts"))));
+                storage.store(zoneEventsCollection, json);
+            });
 
             logger.info("Broker started. ");
         } catch (Throwable t) {

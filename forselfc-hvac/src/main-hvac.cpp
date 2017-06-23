@@ -35,13 +35,13 @@ char *readMac(char *toRead) {
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("Start: ");
+    pn("Start: ");
     thermostat.setup();
     mqttControlCenter = new MqttHvacControlCenter(readMac(macAddress), ssid, password, mqttServer, 1883,
                                                   mqttUsername,
                                                   mqttPassword);
     mqttControlCenter->subscribe(&dispatcher, mqttSubBase);
-    Serial.println("Init done.");
+    pn("Init done.");
 }
 
 void loop() {

@@ -4,33 +4,36 @@
 #include "IMessageListener.h"
 #include "HvacThermostatImpl.h"
 
-enum MessageTypes {
-    CONTROL=0, STATUS_REQUEST=1
-};
+typedef struct Message {
+    /**
+     * could be:
+     *      C -> Control Message
+     *      S -> StatusRequest Message
+     */
+    uint8_t messageType;
+} Message;
 
 class MessageDispatcher : public IMessageListener {
 private:
     IHvacThermostat *thermostat;
 
     void printOut(char *topic, uint8_t *payload, unsigned int length) {
-        Serial.print("Unknown message arrived, topic [");
-        Serial.print(topic);
-        Serial.print("]. Control message [");
+        pf("Message on topic [%s]. Content [", topic);
         for (int i = 0; i < length; i++) {
-            Serial.print(payload[i]);
+            p((char)payload[i]);
         }
+        pn("]. ");
     }
 public:
-    MessageDispatcher(IHvacThermostat *thermostat): thermostat(thermostat) {}
+    explicit MessageDispatcher(IHvacThermostat *thermostat): thermostat(thermostat) {}
 
-    void onMessage(char *topic, uint8_t *payload, unsigned int length) {
-        Serial.print("Dispatching: ");
-        Serial.println(payload[0] - 48);
+    void onMessage(char *topic, uint8_t *payload, unsigned int length) override {
+        printOut(topic, payload, length);
         switch (payload[0]) {
-            case '0': thermostat->onControlMessage(payload, length); break;
-            case '1': thermostat->onStatusRequestMessage(payload, length); break;
+            case 'C': thermostat->onControlMessage(payload, length); break;
             default:
-                printOut(topic, payload, length);
+                p("Ignore message of type: ");
+                pn((char)payload[0]);
         }
     }
 };

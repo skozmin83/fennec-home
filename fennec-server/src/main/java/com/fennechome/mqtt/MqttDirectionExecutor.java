@@ -58,23 +58,31 @@ public class MqttDirectionExecutor implements IDirectionExecutor {
                 + "\", \"etype\":\"THERMOSTAT\", \"ts\":\"" + ts + "\"}";
     }
 
+    /**
+     * A -> Fan ON,  Heating ON,  Cooling OFF, COMPRESSOR ON
+     * H -> Fan ON,  Heating ON,  Cooling OFF, COMPRESSOR ON
+     * C -> Fan ON,  Heating OFF, Cooling ON,  COMPRESSOR ON
+     * Z -> Fan OFF, Heating OFF, Cooling OFF, COMPRESSOR OFF
+     * @param thermostatState
+     * @return message
+     */
     private String prepareThermostatMessage(ThermostatState thermostatState) {
         String message;
         switch (thermostatState) {
             case COOL:
             case COOL_LEVEL_2:
-                message = "01";
+                message = "CC";
                 break;
             case HEAT:
             case HEAT_LEVEL_2:
             case EMERGENCY_HEAT:
-                message = "01";
+                message = "CH";
                 break;
             case FAN:
-                message = "01";
+                message = "CA";
                 break;
             case OFF:
-                message = "00";
+                message = "CZ";
                 break;
             default:
                 throw new FennecException("Unable to handle [" + thermostatState + "]. ");
