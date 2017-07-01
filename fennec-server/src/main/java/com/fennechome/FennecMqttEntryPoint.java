@@ -4,6 +4,7 @@ import com.fennechome.common.FennecMqttEventSource;
 import com.fennechome.common.IFennecEventSource;
 import com.fennechome.common.MqttClientFactory;
 import com.fennechome.common.PropertiesUtil;
+import com.fennechome.controller.CurrentTimeProvider;
 import com.fennechome.controller.IFennecComfortController;
 import com.fennechome.controller.FennecSimpleBoundariesController;
 import com.fennechome.mqtt.FennecMqttControllerEventSource;
@@ -33,7 +34,7 @@ public class FennecMqttEntryPoint {
             logger.info("Starting Fennec MongoDB and MQTT server with config [" + args[0] + "]. ");
             Configuration config = PropertiesUtil.getConfig(new File(args[0]));
 
-            FennecMqttControllerEventSource controllerEventSource = new FennecMqttControllerEventSource(config);
+            FennecMqttControllerEventSource controllerEventSource = new FennecMqttControllerEventSource(config, new CurrentTimeProvider());
 
             String tempCollection = config.getString("fennec.mongo.sensor.temperature.collection");
             String zoneEventsCollection = config.getString("fennec.mongo.zone-events.collection");

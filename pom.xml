@@ -1,17 +1,17 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <groupId>com.fennechome</groupId>
     <artifactId>fennec-home</artifactId>
+    <packaging>pom</packaging>
+    <version>0.01-SNAPSHOT</version>
+    <name>Fennec Home</name>
     <modules>
         <module>fennec-web</module>
         <module>fennec-server</module>
         <module>fennec-common</module>
         <!--<module>dist</module>-->
     </modules>
-    <groupId>com.fennechome</groupId>
-    <packaging>pom</packaging>
-    <version>0.01-SNAPSHOT</version>
-    <name>Fennec Home</name>
 
     <repositories>
         <repository>

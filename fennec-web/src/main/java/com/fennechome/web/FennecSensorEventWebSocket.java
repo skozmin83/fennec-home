@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fennechome.common.FennecException;
 import com.fennechome.common.IFennecEventSource;
-import com.fennechome.common.BsonSerializer;
 import org.apache.commons.configuration2.Configuration;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
@@ -51,11 +50,8 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
         String device = deviceParams.get(0);
         String sensorTopic = devicesBaseTopic + device + "/" + sid;
         sensorsListener.setTopic(sensorTopic);
-        subscribe(sensorTopic, sensorsListener);
-    }
-
-    private void subscribe(String subTopic, IFennecEventSource.Listener listener) {
-        source.subscribe(subTopic, listener);
+        sensorsListener.setId(sess.getRemoteAddress().toString());
+        source.subscribe(sensorTopic, sensorsListener);
     }
 
     @Override
@@ -86,6 +82,7 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
     private class MqttTempSensorListener implements IFennecEventSource.Listener {
         private final ObjectMapper   mapper     = new ObjectMapper();
         private String topic;
+        private String id;
 
         public void setTopic(String topic) {
             this.topic = topic;
@@ -97,7 +94,7 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
                 ObjectNode json = (ObjectNode) mapper.readTree(msg);
                 json.put("ts", System.currentTimeMillis());
                 json.put("etype", "TEMPERATURE_SENSOR");
-                logger.info("Publish:" + topic + ", message: " + json);
+//                logger.info("Publish:" + topic + ", message: " + json);
                 getRemote().sendString(mapper.writeValueAsString(json), callback);
             } catch (Exception e) {
                 logger.error("Unable to publish message. ", e);
@@ -107,9 +104,11 @@ public class FennecSensorEventWebSocket extends WebSocketAdapter {
 
         @Override
         public String toString() {
-            return "MqttTempSensorListener{" +
-                    "topic='" + topic + '\'' +
-                    '}';
+            return "MqttTempSensorListener{id='" + id + '\'' + '}';
+        }
+
+        public void setId(String id) {
+            this.id = id;
         }
     }
 }

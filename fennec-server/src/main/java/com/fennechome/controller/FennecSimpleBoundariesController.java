@@ -16,6 +16,7 @@ public class FennecSimpleBoundariesController implements IFennecComfortControlle
         IFennecControllerEventSource.IFennectControllerEventListener {
     public static final int MIN_TEMP_TIME_UPDATE_MS = 10000;
     public static final int FASTEST_DIRECTION_TIME_SWITCH_MS = 1000 * 60 * 10;
+    public static final int RE_PUBLISH_INTERVAL = 20000; // must be in sync (thrice faster) with hvac controller heartbeat interval
     public static final int MIN_TEMP_BAND = 1;
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final OppositeDirectionMonitor oppositeDirectionMonitor = new OppositeDirectionMonitor(FASTEST_DIRECTION_TIME_SWITCH_MS);
@@ -27,6 +28,7 @@ public class FennecSimpleBoundariesController implements IFennecComfortControlle
     private final ITimeProvider timer;
     private long eventIdWatermark = -1;
     private Direction lastDirection = new Direction();
+    private long lastPublishDirectionTs = -1;
 
     // todo add same zone sensor differences analysis:
     // if temp between two sensors is far apart at time 0 do:
@@ -126,7 +128,7 @@ public class FennecSimpleBoundariesController implements IFennecComfortControlle
         direction.thermostatState = convert(targetState);
 
         // compare if state changed since last time
-        if (!lastDirection.equals(direction)) {
+        if (!lastDirection.equals(direction) || (timeMillis - lastPublishDirectionTs) > RE_PUBLISH_INTERVAL) {
             if (oppositeDirectionMonitor.wantToSwitch(direction.thermostatState, timeMillis)) {
                 direction.id = lastDirection.id + 1;
                 executor.send(direction);

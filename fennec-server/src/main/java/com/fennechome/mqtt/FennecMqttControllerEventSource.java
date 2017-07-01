@@ -2,12 +2,7 @@ package com.fennechome.mqtt;
 
 import com.fennechome.common.FennecException;
 import com.fennechome.common.IFennecEventSource;
-import com.fennechome.controller.Device;
-import com.fennechome.controller.DeviceType;
-import com.fennechome.controller.IFennecControllerEventSource;
-import com.fennechome.controller.TemperatureEvent;
-import com.fennechome.controller.ZoneEvent;
-import com.fennechome.controller.ZonePreferencesEvent;
+import com.fennechome.controller.*;
 import com.google.common.collect.Sets;
 import org.apache.commons.configuration2.Configuration;
 import org.bson.Document;
@@ -22,8 +17,9 @@ import java.util.Map;
  */
 public class FennecMqttControllerEventSource
         implements IFennecControllerEventSource, IFennecEventSource.Listener, AutoCloseable {
-    private final Logger       logger = LoggerFactory.getLogger(getClass());
-    private final String devicePrefix;
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final String        devicePrefix;
+    private final ITimeProvider timeProvider;
     private long id = 0;
     private IFennectControllerEventListener listener;
 
@@ -35,8 +31,9 @@ public class FennecMqttControllerEventSource
         put("A0:20:A6:16:A7:0A/dht22-bottom", "livingroom");
     }};
 
-    public FennecMqttControllerEventSource(Configuration config) {
+    public FennecMqttControllerEventSource(Configuration config, ITimeProvider timeProvider) {
         devicePrefix = config.getString("fennec.mqtt.devices-base-topic");
+        this.timeProvider = timeProvider;
     }
 
     @Override
@@ -82,8 +79,23 @@ public class FennecMqttControllerEventSource
                 new Device("A0:20:A6:16:A7:0A/dht22-bottom", DeviceType.TEMPERATURE_SENSOR),
                 new Device("A0:20:A6:16:A7:0A/hose", DeviceType.HOSE)
         )));
-        listener.onZonePreferencesEvent(new ZonePreferencesEvent(nextId(), 0, "bedroom", 21.0f, 24.0f));
-        listener.onZonePreferencesEvent(new ZonePreferencesEvent(nextId(), 0, "livingroom", 21.0f, 24.0f));
+        listener.onZonePreferencesEvent(new ZonePreferencesEvent(nextId(), 0, "bedroom", 24.0f, 28.0f));
+        listener.onZonePreferencesEvent(new ZonePreferencesEvent(nextId(), 0, "livingroom", 24.0f, 28.0f));
+
+        // todo re-do to a time service
+        Thread timerThread = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                listener.onTimeEvent(new TimeEvent(timeProvider.currentTime()));
+                try {
+                    Thread.sleep(10000); // todo make configurable
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        });
+        timerThread.setDaemon(true);
+        timerThread.start();
     }
 
     @Override

@@ -1,10 +1,10 @@
 package com.fennechome.server;
 
-import com.fennechome.common.IMqttClientFactory;
 import com.fennechome.common.MqttClientFactory;
 import com.fennechome.common.PropertiesUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.eclipse.paho.client.mqttv3.IMqttClient;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import java.io.File;
@@ -23,16 +23,21 @@ public class TestMqttSender {
         int step = 0;
         while(true) {
             try {
-                Thread.sleep(300);
-//                Thread.sleep(1000);
+//                Thread.sleep(300);
+                Thread.sleep(1000);
                 float tempBase = 23f;
                 float sinPart = (float) (Math.sin(Math.toRadians(step++ * 3)) * 3.0f);
+                mqttClient = mqttClientFactory.getMqttClient();
                 String msg = "{\"t\":" + (tempBase + sinPart) + ",\"h\":59.30,\"v\":2.67,\"sid\":\"dht22-top\"}";
-                System.out.println("Send: " + msg);
                 mqttClient.publish(topicBase + "A0:20:A6:16:A6:34/dht22-top", new MqttMessage(msg.getBytes()));
+                System.out.println("Sent: " + msg);
             } catch (Exception e) {
                 e.printStackTrace();
-                mqttClient = mqttClientFactory.getMqttClient();
+                try {
+                    mqttClient.close();
+                } catch (MqttException e1) {
+                    e1.printStackTrace();
+                }
             }
 //        mqttClient.publish(topicBase + "A0:20:A6:16:A6:34/dht22-bottom", );
 //        mqttClient.publish(topicBase + "A0:20:A6:16:A7:0A/dht22-top", );

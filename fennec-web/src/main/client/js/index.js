@@ -39,6 +39,7 @@ graph1.subscribeToDynamicSensorData(dg.dynamicLoader(dynamicDevice1Sensor2Url));
 let graph2 = dg.graph(dg.view(device2Name, "#area2"));
 graph2.loadSeries(dg.loader({url: fullDevice2Sensor1Url, id: "dht22-top"}));
 graph2.loadSeries(dg.loader({url: fullDevice2Sensor2Url, id: "dht22-bottom"}));
+graph1.loadSegments(dg.loader({url: fullThermostat1Url, id: "cooling"}));
 graph2.subscribeToDynamicZoneData(dg.dynamicLoader(dynamicThermostat1Url));
 graph2.subscribeToDynamicSensorData(dg.dynamicLoader(dynamicDevice2Sensor1Url));
 graph2.subscribeToDynamicSensorData(dg.dynamicLoader(dynamicDevice2Sensor2Url));

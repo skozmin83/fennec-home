@@ -5,13 +5,13 @@
 #include <Arduino.h>
 #include "HvacThermostatImpl.h"
 
-static const int CONTROL_CMD_INDICATION_TYPE_MS = 1000;
+static const int CONTROL_CMD_INDICATION_TYPE_MS = 100;
 /**
  * for safety purpose we assume we should always receive a heartbeat from control center, if there is none -shut down
  */
 static const int MIN_CONTROL_PUBLISH_INTERVAL = 60000;
 //static const int MIN_FAN_AFTER_COMPRESSOR = 120000; // 2 mins
-static const int MIN_FAN_AFTER_COMPRESSOR = 3000;
+static const int MIN_FAN_AFTER_COMPRESSOR = 10000;
 static const int PIN_ON = HIGH;
 static const int PIN_OFF = LOW;
 static const int LIGHT_ON = LOW;

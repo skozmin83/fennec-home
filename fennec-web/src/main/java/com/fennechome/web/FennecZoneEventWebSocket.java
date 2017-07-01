@@ -38,6 +38,7 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
             String thermostat = thermostatParams.get(0);
             String thermostatTopic = uiBaseTopic + thermostat;
             thermostatDirectivesListener.setTopic(thermostatTopic);
+            thermostatDirectivesListener.setId(sess.getRemoteAddress().toString());
             source.subscribe(thermostatTopic, thermostatDirectivesListener);
         } else {
             throw new IllegalArgumentException("[sid] and [topic] params, must be present. ");
@@ -72,6 +73,7 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
     private class MqttThermostatDirectivesListener implements IFennecEventSource.Listener {
         private final ObjectMapper mapper = new ObjectMapper();
         private String topic;
+        private String id;
 
         public void setTopic(String topic) {
             this.topic = topic;
@@ -81,7 +83,7 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
         public void onEvent(String topic, byte[] msg, long ts) {
             try {
                 ObjectNode json = (ObjectNode) mapper.readTree(msg);
-                logger.info("Publish:" + topic + ", message: " + json);
+//                logger.info("Publish:" + topic + ", message: " + json);
                 getRemote().sendString(mapper.writeValueAsString(json), callback);
             } catch (Exception e) {
                 logger.error("Unable to publish message. ", e);
@@ -91,10 +93,11 @@ public class FennecZoneEventWebSocket extends WebSocketAdapter {
 
         @Override
         public String toString() {
-            return "MqttThermostatDirectivesListener{" +
-                    "topic='" + topic + '\'' +
-                    '}';
+            return "MqttThermostatDirectivesListener{id='" + id + '\'' + '}';
+        }
+
+        public void setId(String id) {
+            this.id = id;
         }
     }
-
 }
